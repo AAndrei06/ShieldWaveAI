@@ -7,11 +7,73 @@
 	<script src="https://www.gstatic.com/firebasejs/8.8.1/firebase-auth.js"></script>
 	<script src="https://www.gstatic.com/firebasejs/8.8.1/firebase-firestore.js"></script>
 	<script src="https://www.gstatic.com/firebasejs/8.8.1/firebase-storage.js"></script>
-	
+	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+	<link rel="stylesheet" type="text/css" href="./css/general.css">
+	<link rel="stylesheet" type="text/css" href="./css/index.css">
 	<title>ShieldWaveAI | Home</title>
 </head>
 <body>
-	Home page
+	<main>
+		<div class="main-container">
+			<div class="left-section">
+				<div class="info-section">
+					<div class="info-text info-text-info">Informații</div>
+					<div class="real-info">
+
+					</div>
+				</div>
+				<div class="alerts-section">
+					<div class="info-text alerts-text-info">Alerte recente</div>
+					<br>
+					<div class="alerts-list">
+						<div class="alerts-title-row">
+							<div>Tip Alertă</div>
+							<div>Ora Alertei</div>
+							<div>Clasificarea</div>
+							<div>Probabilitatea</div>
+							<div>Dovada</div>
+						</div>
+						<div class="inserted-alerts">
+							<div class="alert-div">
+								<div>Video</div>
+								<div>22:45</div>
+								<div>Persoană</div>
+								<div>87%</div>
+								<div>Link</div>
+							</div>
+							<div class="alert-div">
+								<div>Video</div>
+								<div>22:45</div>
+								<div>Persoană</div>
+								<div>87%</div>
+								<div>Link</div>
+							</div>
+							<div class="alert-div">
+								<div>Video</div>
+								<div>22:45</div>
+								<div>Persoană</div>
+								<div>87%</div>
+								<div>Link</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="right-section">
+				<div class="video-section">
+					 <img src = "../images/city.png"/>
+				</div>
+				<div class="graphs-section">
+					<div class="day-graph">
+						<canvas id="alertsChart"></canvas>
+					</div>
+					<div class="h-graph">
+						<canvas id="alertsChart24h"></canvas>
+					</div>
+				</div>
+			</div>
+		</div>
+	</main>
 </body>
 <script type="text/javascript" src="./js/main.js"></script>
 <script type="text/javascript" src="./js/index.js"></script>
