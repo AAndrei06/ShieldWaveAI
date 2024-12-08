@@ -1,0 +1,12 @@
+*{
+	font-family: Roboto;
+}
+
+:root{
+	--purple: #8559ff;
+}
+
+body{
+	margin: 0px;
+	padding: 0px;
+}
