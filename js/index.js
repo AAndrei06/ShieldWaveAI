@@ -223,3 +223,18 @@ const alertsChart1 = new Chart(ctx1, {
         }
     }
 });
+
+let copyBtn = document.querySelector('.pure-field');
+
+copyBtn.onclick = function() {
+    document.execCommand("copy");
+}
+
+copyBtn.addEventListener("copy", function(event) {
+    event.preventDefault();
+    if (event.clipboardData) {
+        event.clipboardData.setData("text/plain", document.getElementsByClassName('plain-text-token')[0].innerText);
+        console.log(event.clipboardData.getData("text"))
+        alert('Token Copiat');
+    }
+});

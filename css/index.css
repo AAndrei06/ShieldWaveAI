@@ -93,8 +93,9 @@ main{
 .info-section{
     width: 100%;
     height: 300px;
-    background-color: brown;
+    background-color: white;
     border-radius: 10px;
+    position: relative;
 }
 
 .alerts-section{
@@ -102,6 +103,10 @@ main{
     height: calc(100% - 300px);
     background-color: white;
     border-radius: 10px;
+    width: 100%;
+    overflow-x: scroll;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
 }
 
 .info-text{
@@ -122,7 +127,7 @@ main{
 
 .alerts-title-row > div{
     width: 200px;
-    border: 1px solid black;
+    border: none;
     display: flex;
     flex-wrap: wrap;
     justify-content: space-around;
@@ -130,7 +135,7 @@ main{
     padding-top: 5px;
     padding-bottom: 5px;
     font-family: Arial, Helvetica, sans-serif;
-    font-weight: 700;
+    font-weight: bold;
     font-size: 15px;
 }
 
@@ -141,16 +146,17 @@ main{
 
 .alert-div > div{
     width: 200px;
-    border: 1px solid black;
+    border: none;
     display: flex;
     flex-wrap: wrap;
     justify-content: space-around;
     padding: 10px;
-    padding-top: 5px;
-    padding-bottom: 5px;
+    padding-top: 1px;
+    padding-bottom: 1px;
     font-family: Arial, Helvetica, sans-serif;
-    font-weight: 700;
+    font-weight: 500;
     font-size: 15px;
+    align-content: center;
 }
 
 .inserted-alerts{
@@ -164,8 +170,183 @@ main{
     flex-direction: column;
     gap: 10px;
     background-color: white;
+    width: 625px;
 }
 
 .alerts-text-info{
     background-color: white;
 }
+
+.probability{
+    width: 60px;
+    height: 26px;
+    align-content: center;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    font-family: Arial, Helvetica, sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.green-class{
+    border: 1px solid #155724;
+    border-radius: 3px;
+    color: #155724;
+    background-color: #d4edda;
+}
+
+.yellow-class{
+    border: 1px solid #d18c0a;
+    border-radius: 3px;
+    color: #d18c0a;
+    background-color: #fff3cd;
+}
+
+.red-class{
+    border: 1px solid #a42d24;
+    border-radius: 3px;
+    color: #a42d24;
+    background-color: #f8d7da;
+}   
+
+.link-obj > a{
+    text-decoration: none;
+    font-family: Arial, Helvetica, sans-serif;
+    font-weight: 500;
+    font-size: 15px;
+    color: #135659;
+    font-weight: 500;
+}
+
+.the-line{
+    width: 100%;
+    height: 1px;
+    background-color: gray;
+    position: relative;
+    top: 10px;
+    z-index: 0;
+}
+
+.date-formated{
+    margin-left: auto;
+    margin-right: auto;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    width: 90%;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    background-color: white;
+}
+
+.actual-date{
+    font-family: Arial, Helvetica, sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    background-color: white;
+    width: 100px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    z-index: 3;
+}
+
+.hour-of-alert{
+    color: #0645ab;
+}
+
+.token-field{
+    padding: 7px;
+    align-content: center;
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    position: absolute;
+}
+
+.token-field > div:first-child{
+    font-family: Arial, Helvetica, sans-serif;
+    font-weight: 700;
+    font-size: 17px; 
+    margin-top: 5px;
+}
+
+.pure-field{
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    gap: 10px;
+    padding: 3px;
+    cursor: pointer;
+}
+
+.pure-field > div:nth-child(1){
+    font-family: Arial, Helvetica, sans-serif;
+    font-weight: 500;
+    font-size: 17px;
+}
+
+.pure-field > div:nth-child(2){
+    font-size: 20px;
+}
+
+.options{
+    padding-left: 1%;
+    width: 98%;
+    height: 40px;
+    position: absolute;
+    bottom: 0px;
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+}
+
+.option-btn{
+    height: 40px;
+    width: 200px;
+    color: white;
+    align-content: center;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.option-btn > div{
+    font-family: Arial, Helvetica, sans-serif;
+    font-weight: 700;
+    font-size: 17px;
+}
+
+.deactivate{
+    background-color: #135659;
+}
+
+.deactivate:hover{
+    background-color: #0d484b;
+}
+
+.delete-all{
+    background-color: #f22222;
+}
+
+.delete-all:hover{
+    background-color: #db0b0b;
+}
+
+.logout{
+    background-color: #e4b92c;
+}
+
+.logout:hover{
+    background-color: #d1a71d;
+}
+
+/*
+@media all and (max-width: 1300px){
+    .alerts-section{
+
+    }
+}*/
