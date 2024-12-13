@@ -10,7 +10,6 @@ main{
     background-color: var(--back-white);
     display: flex;
     flex-direction: row;
-
 }
 
 .left-section{
@@ -51,6 +50,7 @@ main{
 
 .graphs-section{
     width:calc(100% - 10px);
+    height: 330px;
     display: flex;
     flex-direction: row;
     gap: 10px
@@ -126,7 +126,7 @@ main{
 }
 
 .alerts-title-row > div{
-    width: 200px;
+    width: 20%;
     border: none;
     display: flex;
     flex-wrap: wrap;
@@ -145,7 +145,7 @@ main{
 }
 
 .alert-div > div{
-    width: 200px;
+    width: 20%;
     border: none;
     display: flex;
     flex-wrap: wrap;
@@ -170,7 +170,8 @@ main{
     flex-direction: column;
     gap: 10px;
     background-color: white;
-    width: 625px;
+    min-width: 625px;
+    width: 100%;
 }
 
 .alerts-text-info{
@@ -261,15 +262,19 @@ main{
     align-content: center;
     display: flex;
     flex-direction: row;
-    gap: 20px;
+    gap: 5px;
     position: absolute;
+    width: calc(100% - 14px);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
 }
 
 .token-field > div:first-child{
     font-family: Arial, Helvetica, sans-serif;
     font-weight: 700;
     font-size: 17px; 
-    margin-top: 5px;
+    margin-top: 4px;
 }
 
 .pure-field{
@@ -283,12 +288,13 @@ main{
 
 .pure-field > div:nth-child(1){
     font-family: Arial, Helvetica, sans-serif;
-    font-weight: 500;
+    font-weight: 700;
     font-size: 17px;
 }
 
 .pure-field > div:nth-child(2){
     font-size: 20px;
+    font-weight: 700;
 }
 
 .options{
@@ -300,11 +306,34 @@ main{
     display: flex;
     flex-direction: row;
     gap: 10px;
+    margin-bottom: 6px;
+}
+
+.line-tok{
+    margin-left: auto;
+    margin-right: auto;
+    width: 90%;
+    height: 1px;
+    background-color: rgb(139, 139, 139);
+    position: absolute;
+    margin-left: 5%;
+    top: 35px;
+}
+
+.first-charts{
+    width: 100%;
+    height: 200px;
+    position: absolute;
+    top: 40px;
+}
+
+#alertChartPie{
+    float: right;
 }
 
 .option-btn{
     height: 40px;
-    width: 200px;
+    width: 33.3%;
     color: white;
     align-content: center;
     display: flex;
@@ -344,9 +373,192 @@ main{
     background-color: #d1a71d;
 }
 
-/*
-@media all and (max-width: 1300px){
-    .alerts-section{
+@media all and (max-width: 1800px){
+    .option-btn > div{
+        font-weight: 500;
+        font-size: 15px;
+    }
+}
+
+@media all and (max-width: 1250px){
+
+    .main-container{
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .left-section{
+        width: 100%;
+        padding: 0px;
+    }
+
+    .right-section{
+        width: 100%;
+    }
+
+}
+
+@media all and (max-width: 730px){
+    .graphs-section{
+        width:100%;
+        display: flex;
+        flex-direction: column;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .right-section{
+        padding-right: 0px;
+        margin-right: 0px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+    }
+
+    .day-graph {
+        height: 330px;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: #ffffff;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 
     }
-}*/
+    
+    .day-graph > canvas {
+        width: 100%;
+        height: 330px;
+        display: block;
+    }
+    
+    .h-graph {
+        height: 330px;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: #ffffff;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .h-graph > canvas {
+        width: 100%;
+        height: 330px;
+        display: block;
+    }
+    
+}
+
+@media all and (max-width: 1000px){
+    .video-section{
+        width: calc(100%);
+        background-color: var(--back-white);
+        height: 500px;
+    }
+    
+    .video-section > img{
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 10px;
+        border: 1px solid gray;
+    }
+}
+
+@media all and (max-width: 850px){
+    .video-section{
+        width: calc(100%);
+        background-color: var(--back-white);
+        height: 430px;
+    }
+    
+    .video-section > img{
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 10px;
+        border: 1px solid gray;
+    }
+}
+
+@media all and (max-width: 700px){
+    .video-section{
+        width: calc(100%);
+        background-color: var(--back-white);
+        height: 380px;
+    }
+    
+    .video-section > img{
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 10px;
+        border: 1px solid gray;
+    }
+}
+
+@media all and (max-width: 600px){
+    .video-section{
+        width: calc(100%);
+        background-color: var(--back-white);
+        height: 330px;
+    }
+    
+    .video-section > img{
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 10px;
+        border: 1px solid gray;
+    }
+}
+
+@media all and (max-width: 530px){
+    .video-section{
+        width: calc(100%);
+        background-color: var(--back-white);
+        height: 270px;
+    }
+    
+    .video-section > img{
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 10px;
+        border: 1px solid gray;
+    }
+}
+
+@media all and (max-width: 420px){
+    .video-section{
+        width: calc(100%);
+        background-color: var(--back-white);
+        height: 230px;
+    }
+    
+    .video-section > img{
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 10px;
+        border: 1px solid gray;
+    }
+
+    .token-field > div:first-child{
+        font-weight: 700;
+        font-size: 11px; 
+    }
+    
+    .pure-field > div:nth-child(1){
+        font-family: Arial, Helvetica, sans-serif;
+        font-weight: 500;
+        font-size: 11px;
+    }
+    
+    .pure-field > div:nth-child(2){
+        font-size: 12px;
+    }
+
+}

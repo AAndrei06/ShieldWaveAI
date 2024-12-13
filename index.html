@@ -3,11 +3,13 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="icon" type="image/x-icon" href="./images/logo.png">
 	<script src="https://www.gstatic.com/firebasejs/8.9.0/firebase-app.js"></script>
 	<script src="https://www.gstatic.com/firebasejs/8.8.1/firebase-auth.js"></script>
 	<script src="https://www.gstatic.com/firebasejs/8.8.1/firebase-firestore.js"></script>
 	<script src="https://www.gstatic.com/firebasejs/8.8.1/firebase-storage.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 	<link rel="stylesheet" type="text/css" href="./css/general.css">
 	<link rel="stylesheet" type="text/css" href="./css/index.css">
 	<title>ShieldWaveAI | Home</title>
@@ -18,31 +20,34 @@
 			<div class="left-section">
 				<div class="info-section">
 					<div class="token-field">
-						<div>Token: </div>
 						<acronym title="Copiază token-ul" style="text-decoration: none;">
-						<div class="pure-field">
-							<div class="plain-text-token">g3JvrTEGotfLVzLwadqoJqR4hayWzy7R</div>
-							<div><i class="fa-regular fa-copy"></i></div>
-						</div>
-					</acronym>
+							<div class="pure-field">
+								<div class="plain-text-token">g3JvrTEGotfLVzLwadqoJqR4hayWzy7R</div>
+								<div><i class="fa-regular fa-copy"></i></div>
+							</div>
+						</acronym>
+					</div>
+					<div class="line-tok"></div>
+					<div class="first-charts">
+						<canvas id="alertChartPie" height="210"></canvas>
 					</div>
 					<div class="options">
 						<div class="option-btn delete-all">
 							<div>
 								<i class="fa-solid fa-trash-can"></i>
-								Șterge toate alertele
+								Șterge alertele
 							</div>
 						</div>
 						<div class="option-btn deactivate">
 							<div>
 								<i class="fa-regular fa-circle-stop"></i>
-								Dezactivează camera
+								Dezactivează
 							</div>
 						</div>
 						<div class="option-btn logout">
 							<div>
 							<i class="fa-solid fa-arrow-right-from-bracket"></i>
-							Deconectează-te
+							Ieși
 							</div>
 						</div>
 					</div>

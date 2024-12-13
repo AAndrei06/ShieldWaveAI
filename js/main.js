@@ -1,11 +1,11 @@
 const firebaseConfig = {
-  apiKey: "AIzaSyBlcjBiH5utQ2fX_Qi9xmFtYTrESJRmTBg",
-  authDomain: "shieldwaveai.firebaseapp.com",
-  projectId: "shieldwaveai",
-  storageBucket: "shieldwaveai.firebasestorage.app",
-  messagingSenderId: "89383211833",
-  appId: "1:89383211833:web:a5d180d3bb052735560ee8",
-  measurementId: "G-L6Y6JDMMZW"
+  apiKey: "AIzaSyAPqKa2MSQEt-G0kEly-HeY2YEjFbnFpNM",
+  authDomain: "megaanunt.firebaseapp.com",
+  projectId: "megaanunt",
+  storageBucket: "megaanunt.appspot.com",
+  messagingSenderId: "1091398450368",
+  appId: "1:1091398450368:web:e5cad303c33be121068125",
+  measurementId: "G-8TE0GCLPKL"
 };
 
 const app = firebase.initializeApp(firebaseConfig);

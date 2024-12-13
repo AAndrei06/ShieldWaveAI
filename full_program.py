@@ -95,6 +95,7 @@ def object_detection_thread():
 
     while True:
         ret, frame = cap.read()
+        print(ret)
         results = model(frame)
         for result in results:
             for box in result.boxes:
@@ -106,6 +107,7 @@ def object_detection_thread():
                     label = f"{model.names[cls]} {confidence:.2f}"
                     cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
         cv2.imshow('YOLOv8 Object Detection', frame)
+        
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
     cap.release()
