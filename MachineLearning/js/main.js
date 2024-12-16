@@ -11,6 +11,7 @@ const firebaseConfig = {
 const app = firebase.initializeApp(firebaseConfig);
 
 const usersDB = firebase.firestore().collection("usersDB");
+const alertsDB = firebase.firestore().collection("alerts");
 
 function validateEmail(email){
 

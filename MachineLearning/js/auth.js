@@ -25,7 +25,8 @@ submit.onclick = () => {
                 name: name.value,
                 email: email.value,
                 token: generateToken(32),
-                created: date.getTime()
+                created: date.getTime(),
+                ID: user.uid
             }).then(() => {
                 let btn = document.getElementsByName('submit_btn')[0];
                 btn.style.backgroundColor = '#4BB543';

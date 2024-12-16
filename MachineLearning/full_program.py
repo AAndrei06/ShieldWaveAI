@@ -28,6 +28,7 @@ FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 44100
 RECORD_SECONDS = 3
+AUTH_TOKEN="gyDaUkVEokcZp8Gly99KAuY1Swvbi6bQ"
 
 def save_audio_to_wav(audio_data_bytes, filename):
     with wave.open(filename, 'wb') as wf:
@@ -88,6 +89,7 @@ def send_alert(confidence, object_detected, detection_type):
         "classification": object_detected,
         "confidence": confidence,
         "detection_type": detection_type,
+        "auth_token": AUTH_TOKEN
     }
 
     with open(file_path, "rb") as file:
@@ -103,8 +105,8 @@ def audio_classification_thread():
     print("Audio Classification Running...")
     while True:
         label = classify_audio(stream)
-        #send_alert(int(label[1]*100), label[0],"Audio")
-        #print(f"Audio classified as: {label}")
+        send_alert(int(label[1]*100), label[0],"Audio")
+        print(f"Audio classified as: {label}")
 
     stream.stop_stream()
     stream.close()
@@ -115,7 +117,7 @@ def object_detection_thread():
     model = YOLO('yolov8n.pt')
     cap = cv2.VideoCapture(0)
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    fps = 10
+    fps = 8
     output_file = 'video.avi'
     out = cv2.VideoWriter(output_file, fourcc, fps, (640, 480))
     frames = []
