@@ -1,9 +1,118 @@
-firebase.auth().onAuthStateChanged((user) => {
-    if (user) {
-        console.log(user);
-    } else {
-        console.log("not logged in!!!");
-    }
+let userObject = null;
+let userToken = null;
+
+let insertAlertsDiv = document.getElementsByClassName("inserted-alerts")[0];
+
+async function getUserData() {
+    const auth = firebase.auth();
+    return new Promise((resolve, reject) => {
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                try {
+                    const querySnapshot = await usersDB.where("ID", "==", user.uid).get();
+                    if (!querySnapshot.empty) {
+                        userObject = querySnapshot.docs[0].data();
+                        userToken = userObject.token;
+                    } else {
+                        console.log("No user document found with ID:", user.uid);
+                    }
+                    resolve(userObject);
+                } catch (error) {
+                    reject(error);
+                }
+            } else {
+                console.log("No user logged in!");
+                resolve(null);
+            }
+        });
+    });
+}
+
+
+getUserData()
+.then((userObject) => {
+    console.log("User object final:", userObject);
+    document.querySelector('.plain-text-token').innerText = userToken;
+    alertsDB.where("token", "==", userToken).orderBy("detection_time", "desc")
+    .get()
+    .then((querySnapshot) => {
+        let alertsByDay = {};
+        
+        querySnapshot.forEach((doc) => {
+            let link = doc.data().detection_type == "Video" ? "Link la video" : "Link la audio";
+            let color_class = "red-class";
+            let confidence = doc.data().confidence;
+            
+            if (confidence >= 80){
+                color_class = "green-class";
+            } else if (confidence < 80 && confidence >= 60){
+                color_class = "yellow-class";
+            } else {
+                color_class = "red-class";
+            }
+
+            let seconds_time = doc.data().detection_time;
+            let dateObject = new Date(seconds_time * 1000);
+
+            let year = dateObject.getFullYear();
+            let month = (dateObject.getMonth() + 1).toString().padStart(2, '0');
+            let day = dateObject.getDate().toString().padStart(2, '0');
+            let hours = dateObject.getHours().toString().padStart(2, '0');
+            let minutes = dateObject.getMinutes().toString().padStart(2, '0');
+            let seconds = dateObject.getSeconds().toString().padStart(2, '0');
+
+            let dateKey = `${day}.${month}.${year}`;
+
+            if (!alertsByDay[dateKey]) {
+                alertsByDay[dateKey] = [];
+            }
+
+            alertsByDay[dateKey].push({
+                detection_type: doc.data().detection_type,
+                classification: doc.data().classification,
+                confidence: doc.data().confidence,
+                link: doc.data().link,
+                time: `${hours}:${minutes}:${seconds}`,
+                color_class: color_class
+            });
+        });
+
+        let insertAlertsDiv = document.getElementsByClassName("inserted-alerts")[0];
+        
+        for (let dateKey in alertsByDay) {
+            insertAlertsDiv.innerHTML += `
+                <div class="date-formated">
+                    <div class="the-line"></div>
+                    <div class="actual-date">${dateKey}</div>
+                </div>
+            `;
+            let al = 0;
+            alertsByDay[dateKey].forEach(alert => {
+                incrementAlertCount(alert.classification);
+                al += 1;
+                insertAlertsDiv.innerHTML += `
+                    <div class="alert-div">
+                        <div>${alert.detection_type}</div>
+                        <div class="hour-of-alert">${alert.time}</div>
+                        <div>${alert.classification}</div>
+                        <div><div class="probability ${alert.color_class}">${alert.confidence}%</div></div>
+                        <div class="link-obj"><a href="${alert.link}">${alert.detection_type == "Video" ? "Link la video" : "Link la audio"}</a></div>
+                    </div>
+                `;
+            });
+            updateChartData(String(dateKey),al);
+        }
+    })
+    .then(() => {
+        document.body.style.display = "block";
+    })
+    .catch((error) => {
+        console.log("Error getting documents: ", error);
+    });
+
+})
+.catch((error) => {
+    console.error("Error:", error);
 });
 
 document.querySelector(".logout").onclick = () => {
@@ -14,14 +123,20 @@ document.querySelector(".logout").onclick = () => {
     });
 }
 
+function updateChartData(newLabels, newData) {
+    alertsChart.data.labels.push(newLabels);
+    alertsChart.data.datasets[0].data.push(newData)
+    alertsChart.update();
+}
+
 const ctx = document.getElementById('alertsChart').getContext('2d');
 const alertsChart = new Chart(ctx, {
     type: 'bar',
     data: {
-        labels: ['1', '2', '3', '4', '5', '6', '7'],
+        labels: [],
         datasets: [{
             label: 'Număr de alerte',
-            data: [40, 67, 89, 23, 56, 78, 90],
+            data: [],
             backgroundColor: [
                 'rgba(255, 99, 132, 0.7)',
                 'rgba(54, 162, 235, 0.7)',
@@ -48,7 +163,7 @@ const alertsChart = new Chart(ctx, {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-            
+
             legend: {
                 display: false,
                 labels: {
@@ -75,7 +190,7 @@ const alertsChart = new Chart(ctx, {
                     bottom: 20
                 }
             },
-            
+
             tooltip: {
                 enabled: true,
                 backgroundColor: 'rgba(0,0,0,0.7)',
@@ -234,79 +349,117 @@ const alertsChart1 = new Chart(ctx1, {
 });
 
 var ctx3 = document.getElementById('alertChartPie').getContext('2d');
-var alertChart = new Chart(ctx3, {
-    type: 'pie',
-    data: {
-      labels: ['Sticlă', 'Ușă', 'Persoane', 'Pisici'],
-      datasets: [{
+
+var alertData = {
+    labels: [],
+    datasets: [{
         label: 'Număr alerte',
-        data: [30, 24, 12, 17],
+        data: [],
         backgroundColor: [
-          'rgba(255, 87, 51, 0.7)',   // Geam spart
-          'rgba(51, 255, 87, 0.7)',   // Uși deschise
-          'rgba(51, 87, 255, 0.7)',   // Persoane detectate
-          'rgba(255, 51, 161, 0.7)'   // Pisici detectate
+            'rgba(255, 87, 51, 0.7)',
+            'rgba(51, 255, 87, 0.7)',
+            'rgba(51, 87, 255, 0.7)',
+            'rgba(255, 51, 161, 0.7)'
         ],
         borderColor: [
-          'rgba(255, 87, 51, 1)',   
-          'rgba(51, 255, 87, 1)',   
-          'rgba(51, 87, 255, 1)',   
-          'rgba(255, 51, 161, 1)'   
+            'rgba(255, 87, 51, 1)',
+            'rgba(51, 255, 87, 1)',
+            'rgba(51, 87, 255, 1)',
+            'rgba(255, 51, 161, 1)'
         ],
         borderWidth: 1
-      }]
-    },
+    }]
+};
+
+var alertChart = new Chart(ctx3, {
+    type: 'pie',
+    data: alertData,
     options: {
-      responsive: true,
-      plugins: {
-        tooltip: {
-          callbacks: {
-            label: function(tooltipItem) {
-              return tooltipItem.label + ': ' + tooltipItem.raw + ' alerte';
-            }
-          }
-        },
-        legend: {
-          display: false
-        },
-        datalabels: {
-          anchor: 'center',
-          align: 'center',
-          font: {
-            weight: 'bold',
-            size: 12
-          },
-          color: 'white',
-          formatter: (value, context) => {
-            return context.chart.data.labels[context.dataIndex] + '\n' + value;
-          }
-        },
-        title: {
-            display: true,
-            text: 'Cele mai detectate alerte',
-            font: {
-                size: 14,
-                weight: 'bold',
+        responsive: true,
+        plugins: {
+            tooltip: {
+                callbacks: {
+                    label: function (tooltipItem) {
+                        return tooltipItem.label + ': ' + tooltipItem.raw + ' alerte';
+                    }
+                }
             },
-            color: '#333',
-            padding: {
-                top: 7,
-                bottom: 1
+            legend: {
+                display: false
+            },
+            datalabels: {
+                anchor: 'center',
+                align: 'center',
+                font: {
+                    weight: 'bold',
+                    size: 12
+                },
+                color: 'white',
+                formatter: (value, context) => {
+                    return context.chart.data.labels[context.dataIndex] + '\n' + value;
+                }
+            },
+            title: {
+                display: true,
+                text: 'Cele mai detectate alerte',
+                font: {
+                    size: 14,
+                    weight: 'bold',
+                },
+                color: '#333',
+                padding: {
+                    top: 7,
+                    bottom: 1
+                }
             }
-            
-        },
-      }
+        }
     },
     plugins: [ChartDataLabels]
-  });
+});
+
+function addNewAlert(alertCategory, alertDataCount) {
+    const existingIndex = alertData.labels.indexOf(alertCategory);
+
+    if (existingIndex >= 0) {
+        alertData.datasets[0].data[existingIndex] += alertDataCount;
+    } else {
+        alertData.labels.push(alertCategory);
+        alertData.datasets[0].data.push(alertDataCount);
+
+        let newColor = getRandomColor();
+        alertData.datasets[0].backgroundColor.push(newColor);
+        alertData.datasets[0].borderColor.push(newColor);
+    }
+
+    alertChart.update();
+}
+
+function incrementAlertCount(alertCategory) {
+    const categoryIndex = alertData.labels.indexOf(alertCategory);
+    
+    if (categoryIndex !== -1) {
+        alertData.datasets[0].data[categoryIndex] += 1;
+    } else {
+        addNewAlert(alertCategory,1);
+    }
+
+    alertChart.update();
+}
+
+function getRandomColor() {
+    const r = Math.floor(Math.random() * 256);
+    const g = Math.floor(Math.random() * 256);
+    const b = Math.floor(Math.random() * 256);
+    return `rgba(${r}, ${g}, ${b}, 0.7)`;
+}
 
 let copyBtn = document.querySelector('.pure-field');
 
-copyBtn.onclick = function() {
+copyBtn.onclick = function () {
     document.execCommand("copy");
 }
 
-copyBtn.addEventListener("copy", function(event) {
+copyBtn.addEventListener("copy", function (event) {
     event.preventDefault();
     if (event.clipboardData) {
         event.clipboardData.setData("text/plain", document.getElementsByClassName('plain-text-token')[0].innerText);
@@ -321,14 +474,8 @@ let pureField = document.querySelector('.pure-field');
 
 window.addEventListener('resize', () => {
     const windowWidth = window.innerWidth;
-    
-    if (windowWidth < 1550 && windowWidth > 1250){
-        buttons[0].innerHTML = "<div><i class='fa-solid fa-trash-can'></i> Șterge alertele</div>";
-        buttons[1].innerHTML = "<div><i class='fa-regular fa-circle-stop'></i> Dezactivează</div>";
-        buttons[2].innerHTML = "<div><i class='fa-solid fa-arrow-right-from-bracket'></i> Ieși</div>";
-    }
 
-    if (windowWidth < 380){
+    if (windowWidth < 380) {
         buttons[0].innerHTML = "<div><i class='fa-solid fa-trash-can'></i></div>";
         buttons[1].innerHTML = "<div><i class='fa-regular fa-circle-stop'></i></div>";
         buttons[2].innerHTML = "<div><i class='fa-solid fa-arrow-right-from-bracket'></i></div>";
@@ -336,14 +483,8 @@ window.addEventListener('resize', () => {
 });
 
 const windowWidth = window.innerWidth;
-    
-if (windowWidth < 1550 && windowWidth > 1250){
-    buttons[0].innerHTML = "<div><i class='fa-solid fa-trash-can'></i> Șterge alertele</div>";
-    buttons[1].innerHTML = "<div><i class='fa-regular fa-circle-stop'></i> Dezactivează</div>";
-    buttons[2].innerHTML = "<div><i class='fa-solid fa-arrow-right-from-bracket'></i> Ieși</div>";
-}
 
-if (windowWidth < 380){
+if (windowWidth < 380) {
     buttons[0].innerHTML = "<div><i class='fa-solid fa-trash-can'></i></div>";
     buttons[1].innerHTML = "<div><i class='fa-regular fa-circle-stop'></i></div>";
     buttons[2].innerHTML = "<div><i class='fa-solid fa-arrow-right-from-bracket'></i></div>";

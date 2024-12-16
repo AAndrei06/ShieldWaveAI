@@ -8,6 +8,7 @@ import os
 from datetime import datetime
 import pytz
 import uuid
+import time
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 service_account_path = os.path.join(BASE_DIR, 'megaanunt-firebase-adminsdk-4w8vs-139038af14.json')
@@ -24,7 +25,8 @@ class UploadPredictionView(APIView):
         file = request.FILES.get('file')
         classification = request.data.get('classification')
         detection_type = request.data.get('detection_type')
-        confidence = request.data.get('confidence') 
+        confidence = request.data.get('confidence')
+        auth_token = request.data.get('auth_token') 
 
         if not file or not file.name.endswith(('.wav', '.mp3', '.mp4', '.avi')):
             return Response({"error": "Please upload a valid .wav or video file."}, status=status.HTTP_400_BAD_REQUEST)
@@ -42,14 +44,15 @@ class UploadPredictionView(APIView):
         print(file_url)
 
         timezone = pytz.timezone('Europe/Chisinau')
-        detection_time = datetime.now(timezone).strftime('%Y-%m-%d %H:%M:%S')
+        detection_time = datetime.now(timezone).timestamp()
 
         detection_data = {
             'classification': classification,
             'detection_type': detection_type,
             'confidence': int(confidence),
+            'token': auth_token,
             'link': file_url,
-            'detection_time': detection_time
+            'detection_time': int(detection_time)
         }
         db.collection('alerts').add(detection_data)
 
