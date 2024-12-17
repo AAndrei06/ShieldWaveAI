@@ -28,7 +28,7 @@ FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 44100
 RECORD_SECONDS = 3
-AUTH_TOKEN="gyDaUkVEokcZp8Gly99KAuY1Swvbi6bQ"
+AUTH_TOKEN="MFnFu8ZiTVhNqnSoavQbhsT3dcx9uvAz"
 
 def save_audio_to_wav(audio_data_bytes, filename):
     with wave.open(filename, 'wb') as wf:
@@ -105,7 +105,7 @@ def audio_classification_thread():
     print("Audio Classification Running...")
     while True:
         label = classify_audio(stream)
-        send_alert(int(label[1]*100), label[0],"Audio")
+        #send_alert(int(label[1]*100), label[0],"Audio")
         print(f"Audio classified as: {label}")
 
     stream.stop_stream()
