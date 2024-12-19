@@ -34,9 +34,9 @@ class UploadPredictionView(APIView):
         token = uuid.uuid4().hex
         blob = None
         if (detection_type == "Video"):
-            blob = bucket.blob(f'detections/{classification}_{token}.avi')
+            blob = bucket.blob(f'detections/{token}.avi')
         else:
-            blob = bucket.blob(f'detections/{classification}_{token}.wav')
+            blob = bucket.blob(f'detections/{token}.wav')
         blob.upload_from_file(file, content_type='audio/wav' if file.name.endswith('.wav') else 'video/avi')
 
         blob.make_public()
@@ -60,5 +60,22 @@ class UploadPredictionView(APIView):
             "message": "Detection data uploaded successfully",
             "data": detection_data
         }, status=status.HTTP_201_CREATED)
+
+
+class GetDeactivateInfo(APIView):
+    def get(self, request, *args, **kwargs):
+        auth_token = request.GET.get("auth_token")
+        print(auth_token)
+
+        deactivations_ref = db.collection("deactivations")
+        query = deactivations_ref.where("user_token", "==", auth_token).get()
+        if not query:
+            return Response({"error": "No matching document found"}, status=404)
+
+        deactivation = query[0].to_dict()
+        document_id = query[0].id
+        deactivations_ref.document(document_id).delete()
+        
+        return Response(deactivation, status=200)
 
        

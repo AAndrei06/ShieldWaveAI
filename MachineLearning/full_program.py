@@ -29,6 +29,26 @@ CHANNELS = 1
 RATE = 44100
 RECORD_SECONDS = 3
 AUTH_TOKEN="MFnFu8ZiTVhNqnSoavQbhsT3dcx9uvAz"
+deactivate_camera = False
+
+def fetch_camera_deactivate():
+    global deactivate_camera
+    while True and not deactivate_camera:
+        try:
+            url = "http://127.0.0.1:8000/api/deactivate/"
+            response = requests.get(url, params={"auth_token": AUTH_TOKEN})
+            if response.status_code == 200:
+                data = response.json()
+
+                if (data['user_token'] == AUTH_TOKEN and data['state'] == True):
+                    deactivate_camera = True
+            else:
+                print(f"Error: {response.status_code} - {response.json()}")
+        except Exception as e:
+            print(f"Eroare la cerere: {e}")
+        
+        # Așteaptă 5 secunde înainte de următoarea cerere
+        time.sleep(5)
 
 def save_audio_to_wav(audio_data_bytes, filename):
     with wave.open(filename, 'wb') as wf:
@@ -103,7 +123,7 @@ def audio_classification_thread():
     p = pyaudio.PyAudio()
     stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
     print("Audio Classification Running...")
-    while True:
+    while True and not deactivate_camera:
         label = classify_audio(stream)
         #send_alert(int(label[1]*100), label[0],"Audio")
         print(f"Audio classified as: {label}")
@@ -128,7 +148,7 @@ def object_detection_thread():
     last_alert_time = 0
     alert_interval = 5
 
-    while True:
+    while True and not deactivate_camera:
         ret, frame = cap.read()
         results = model(frame, imgsz=440)
         object_detected = False
@@ -176,9 +196,13 @@ def object_detection_thread():
 if __name__ == "__main__":
     audio_thread = threading.Thread(target=audio_classification_thread)
     object_detection_thread = threading.Thread(target=object_detection_thread)
+    deactivate_thread = threading.Thread(target=fetch_camera_deactivate) 
 
     audio_thread.start()
     object_detection_thread.start()
+    deactivate_thread.start()
 
     audio_thread.join()
     object_detection_thread.join()
+    deactivate_thread.join()
+
