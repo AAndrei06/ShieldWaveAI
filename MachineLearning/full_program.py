@@ -13,15 +13,22 @@ import logging
 import requests
 import json
 import time
+from pydub import AudioSegment
+import io
+import imutils
 
+# Ca să îl fac mai rapid
 '''
 import torch
 torch.set_num_threads(4)
 '''
 
 logging.getLogger('ultralytics').setLevel(logging.CRITICAL)
-model = keras.models.load_model('4batches_fr320_32_4epochs_model/4batches_fr320_32_4epochs_model')
-folders = joblib.load('class_labels2.pkl')
+model = keras.models.load_model('2_4batches_fr320_32_4epochs_model/2_4batches_fr320_32_4epochs_model')
+#folders = joblib.load("class_labels2.pkl")
+#folders = ['door', 'voice', 'glass','silence']
+#folders = ['door', 'voice', 'glass', 'footsteps','silence','dog']
+folders = joblib.load("class_labels2.pkl")
 
 CHUNK = 1024
 FORMAT = pyaudio.paInt16
@@ -30,6 +37,8 @@ RATE = 44100
 RECORD_SECONDS = 3
 AUTH_TOKEN="MFnFu8ZiTVhNqnSoavQbhsT3dcx9uvAz"
 deactivate_camera = False
+LIST_OF_VALID = ['person','bicycle','car','motorcycle','bus','truck','bird','cat','dog','horse','sheep',
+                 'cow','elephant','bear','zebra']
 
 def fetch_camera_deactivate():
     global deactivate_camera
@@ -43,20 +52,29 @@ def fetch_camera_deactivate():
                 if (data['user_token'] == AUTH_TOKEN and data['state'] == True):
                     deactivate_camera = True
             else:
-                print(f"Error: {response.status_code} - {response.json()}")
+                print(f"No document found")
         except Exception as e:
             print(f"Eroare la cerere: {e}")
         
-        # Așteaptă 5 secunde înainte de următoarea cerere
         time.sleep(5)
-
+'''
 def save_audio_to_wav(audio_data_bytes, filename):
     with wave.open(filename, 'wb') as wf:
         wf.setnchannels(CHANNELS)
         wf.setsampwidth(2)
         wf.setframerate(RATE)
         wf.writeframes(audio_data_bytes)
-
+'''
+'''
+def save_audio_to_mp3(audio_data_bytes, filename):
+    audio = AudioSegment.from_raw(io.BytesIO(audio_data_bytes), sample_width=2, frame_rate=RATE, channels=CHANNELS)
+    audio.export(filename, format="mp3")
+'''
+def save_audio_to_mp3(audio_data_bytes, filename):
+    audio = AudioSegment.from_raw(io.BytesIO(audio_data_bytes), sample_width=2, frame_rate=44100, channels=1)
+    bitrate = "122k"
+    audio.export(filename, format="mp3", bitrate=bitrate)
+'''
 def load_sound(filename):
     file_contents = tf.io.read_file(filename)
     wav, sample_rate = tf.audio.decode_wav(file_contents, desired_channels=1)
@@ -70,6 +88,27 @@ def load_sound(filename):
     spectrogram = tf.abs(spectrogram)
     spectrogram = tf.expand_dims(spectrogram, axis=-1)
     return spectrogram
+'''
+def load_sound(filename):
+    res = tfio.audio.AudioIOTensor(filename, dtype=tf.float32)
+    tensor = res.to_tensor()
+    tensor = tf.math.reduce_sum(tensor, axis=1) / 2  # Calculul mediei pe canale
+    sample_rate = res.rate
+
+    sample_rate = tf.cast(sample_rate, dtype=tf.int64)
+    wav = tfio.audio.resample(tensor, rate_in=sample_rate, rate_out=16000)
+
+    # Trunchierea și completarea cu zero-uri la 48000
+    wav = wav[:48000]
+    zero_padding = tf.zeros([48000] - tf.shape(wav), dtype=tf.float32)
+    wav = tf.concat([zero_padding, wav], 0)
+
+    # Generarea spectrogramelor folosind STFT
+    spectrogram = tf.signal.stft(wav, frame_length=320, frame_step=32)
+    spectrogram = tf.abs(spectrogram)
+    spectrogram = tf.expand_dims(spectrogram, axis=2)  # Adăugăm dimensiunea corectă
+    return spectrogram
+
 
 def classify_audio(stream):
     frames = []
@@ -79,15 +118,33 @@ def classify_audio(stream):
 
     audio_data_bytes = b''.join(frames)
 
-    temp_filename = 'temp_audio.wav'
-    save_audio_to_wav(audio_data_bytes, temp_filename)
+    temp_filename = 'temp_audio.mp3'
+    save_audio_to_mp3(audio_data_bytes, temp_filename)
     audio_tensor = load_sound(temp_filename)
+    
+
     audio_tensor = tf.expand_dims(audio_tensor, axis=0)
     prediction = model.predict(audio_tensor)
+    print(prediction)
     predicted_class = np.argmax(prediction, axis=1)
     predicted_probabilities = prediction[0]
     max_probability = np.max(predicted_probabilities)
-    if max_probability >= 0.8:
+
+    from matplotlib import pyplot as plt
+    import os
+
+    spectrogram = load_sound(temp_filename)
+    plt.figure(figsize=(30, 20))
+    plt.imshow(tf.transpose(spectrogram)[0])
+    plt.title(f"{folders[predicted_class[0]]}-{max_probability*100}")
+
+    output_path = os.path.join(os.getcwd(), 'spectrogram.png')
+    plt.savefig(output_path)
+    print(f"Spectrograma salvată la: {output_path}")
+    import subprocess
+    subprocess.run(["xdg-open", output_path])
+
+    if max_probability >= 0.5:
         return folders[predicted_class[0]], max_probability
     else:
         return "Niciun Sunet", 0
@@ -97,8 +154,8 @@ def send_alert(confidence, object_detected, detection_type):
 
     file_type = ""
     if detection_type == "Audio":
-        file_path = "temp_audio.wav"
-        file_type = "audio/wav"
+        file_path = "temp_audio.mp3"
+        file_type = "audio/mp3"
     elif detection_type == "Video":
         file_path = "video.avi"
         file_type = "video/avi"
@@ -135,9 +192,10 @@ def audio_classification_thread():
 
 def object_detection_thread():
     model = YOLO('yolov8n.pt')
+    print(model.names)
     cap = cv2.VideoCapture(0)
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    fps = 8
+    fps = 9
     output_file = 'video.avi'
     out = cv2.VideoWriter(output_file, fourcc, fps, (640, 480))
     frames = []
@@ -148,24 +206,42 @@ def object_detection_thread():
     last_alert_time = 0
     alert_interval = 5
 
+    # Motion detection
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
+    _, start_frame = cap.read()
+    start_frame = imutils.resize(start_frame, width = 500)
+    start_frame = cv2.cvtColor(start_frame,cv2.COLOR_BGR2GRAY)
+    start_frame = cv2.GaussianBlur(start_frame, (21,21), 0)
+
     while True and not deactivate_camera:
         ret, frame = cap.read()
         results = model(frame, imgsz=440)
         object_detected = False
         detected_object_name = ""
         confidence_detected = ""
-        for result in results:
-            for box in result.boxes:
-                cls = int(box.cls[0])
-                x1, y1, x2, y2 = map(int, box.xyxy[0])
-                confidence = box.conf[0]
-                if confidence > 0.5:
-                    object_detected=True
-                    detected_object_name=model.names[cls]
-                    confidence_detected = int(confidence * 100)
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                    label = f"{model.names[cls]} {confidence:.2f}"
-                    cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+
+        frame = imutils.resize(frame, width = 500)
+        frame_bw = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        frame_bw = cv2.GaussianBlur(frame_bw, (5,5), 0)
+        difference = cv2.absdiff(frame_bw, start_frame)
+
+        threshold = cv2.threshold(difference, 25, 255, cv2.THRESH_BINARY)[1]
+        start_frame = frame_bw
+        if threshold.sum() > 100000:
+            for result in results:
+                for box in result.boxes:
+                    cls = int(box.cls[0])
+                    x1, y1, x2, y2 = map(int, box.xyxy[0])
+                    confidence = box.conf[0]
+                    if confidence > 0.5 and model.names[cls] in LIST_OF_VALID:
+                        object_detected=True
+                        detected_object_name=model.names[cls]
+                        confidence_detected = int(confidence * 100)
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                        label = f"{model.names[cls]} {confidence:.2f}"
+                        cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
         cv2.imshow('YOLOv8 Object Detection', frame)
         frames.append(frame)
@@ -175,7 +251,7 @@ def object_detection_thread():
             send_alert(confidence_detected, detected_object_name, "Video")
             last_alert_time = current_time
 
-        if time.time() - start_time >= 20:
+        if current_time - start_time >= 10:
             video_name = 'video.avi'
             height, width, _ = frames[0].shape
             out = cv2.VideoWriter(video_name, fourcc, fps, (width, height))
@@ -194,15 +270,15 @@ def object_detection_thread():
     cv2.destroyAllWindows()
 
 if __name__ == "__main__":
-    audio_thread = threading.Thread(target=audio_classification_thread)
+    #audio_thread = threading.Thread(target=audio_classification_thread)
     object_detection_thread = threading.Thread(target=object_detection_thread)
     deactivate_thread = threading.Thread(target=fetch_camera_deactivate) 
 
-    audio_thread.start()
+    #audio_thread.start()
     object_detection_thread.start()
     deactivate_thread.start()
 
-    audio_thread.join()
+    #audio_thread.join()
     object_detection_thread.join()
     deactivate_thread.join()
 
