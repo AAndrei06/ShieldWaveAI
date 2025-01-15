@@ -36,8 +36,8 @@ class UploadPredictionView(APIView):
         if (detection_type == "Video"):
             blob = bucket.blob(f'detections/{token}.avi')
         else:
-            blob = bucket.blob(f'detections/{token}.wav')
-        blob.upload_from_file(file, content_type='audio/wav' if file.name.endswith('.wav') else 'video/avi')
+            blob = bucket.blob(f'detections/{token}.mp3')
+        blob.upload_from_file(file, content_type='audio/mp3' if file.name.endswith('.mp3') else 'video/avi')
 
         blob.make_public()
         file_url = blob.public_url
