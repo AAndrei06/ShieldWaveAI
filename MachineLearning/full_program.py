@@ -229,7 +229,7 @@ def object_detection_thread():
 
         threshold = cv2.threshold(difference, 25, 255, cv2.THRESH_BINARY)[1]
         start_frame = frame_bw
-        if threshold.sum() > 100000:
+        if threshold.sum() > 200000:
             for result in results:
                 for box in result.boxes:
                     cls = int(box.cls[0])
@@ -242,6 +242,10 @@ def object_detection_thread():
                         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                         label = f"{model.names[cls]} {confidence:.2f}"
                         cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+
+            if object_detected == False and (current_time - last_alert_time) > alert_interval:
+                send_alert(100, "Necunoscut", "Video")
+                last_alert_time = current_time
 
         cv2.imshow('YOLOv8 Object Detection', frame)
         frames.append(frame)
