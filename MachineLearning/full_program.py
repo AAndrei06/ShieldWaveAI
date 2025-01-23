@@ -16,6 +16,8 @@ import time
 from pydub import AudioSegment
 import io
 import imutils
+import subprocess
+import librosa
 
 # Ca să îl fac mai rapid
 '''
@@ -24,11 +26,38 @@ torch.set_num_threads(4)
 '''
 
 logging.getLogger('ultralytics').setLevel(logging.CRITICAL)
-model = keras.models.load_model('2_4batches_fr320_32_4epochs_model/2_4batches_fr320_32_4epochs_model')
+model = keras.models.load_model('mel_librosa_1400x300_model')
 #folders = joblib.load("class_labels2.pkl")
 #folders = ['door', 'voice', 'glass','silence']
 #folders = ['door', 'voice', 'glass', 'footsteps','silence','dog']
-folders = joblib.load("class_labels2.pkl")
+#folders = joblib.load("class_labels2.pkl")
+folders = ['door', 'voice', 'glass', 'silence', 'dog', 'footsteps']
+
+command = ['ffmpeg',
+            '-f', 'rawvideo',
+            '-pix_fmt', 'bgr24',
+            '-s','640x480',
+            '-i','-',
+            '-ar', '44100',
+            '-ac', '2',
+            '-acodec', 'pcm_s16le',
+            '-f', 's16le',
+            '-ac', '2',
+            '-i','/dev/zero',   
+            '-acodec','aac',
+            '-ab','128k',
+            '-strict','experimental',
+            '-vcodec','h264',
+            '-pix_fmt','yuv420p',
+            '-g', '50',
+            '-vb','1000k',
+            '-profile:v', 'baseline',
+            '-preset', 'ultrafast',
+            '-r', '30',
+            '-f', 'flv', 
+            'rtmp://a.rtmp.youtube.com/live2/d4jp-wysv-7e8q-67sp-3efu']
+
+
 
 CHUNK = 1024
 FORMAT = pyaudio.paInt16
@@ -39,6 +68,14 @@ AUTH_TOKEN="MFnFu8ZiTVhNqnSoavQbhsT3dcx9uvAz"
 deactivate_camera = False
 LIST_OF_VALID = ['person','bicycle','car','motorcycle','bus','truck','bird','cat','dog','horse','sheep',
                  'cow','elephant','bear','zebra']
+
+BATCH_SIZE = 4
+SAMPLE_RATE = 44100  # Fișierele tale sunt 44.1 kHz
+TARGET_SAMPLE_RATE = 16000  # Resamplează la 16 kHz
+DURATION = 3  # Durata fișierului audio în secunde
+N_MELS = 300  # Număr de benzi Mel
+N_FFT = 1024  # Număr de puncte FFT
+HOP_LENGTH = int((TARGET_SAMPLE_RATE * DURATION) / 1400)
 
 def fetch_camera_deactivate():
     global deactivate_camera
@@ -89,6 +126,10 @@ def load_sound(filename):
     spectrogram = tf.expand_dims(spectrogram, axis=-1)
     return spectrogram
 '''
+
+
+
+'''
 def load_sound(filename):
     res = tfio.audio.AudioIOTensor(filename, dtype=tf.float32)
     tensor = res.to_tensor()
@@ -108,7 +149,47 @@ def load_sound(filename):
     spectrogram = tf.abs(spectrogram)
     spectrogram = tf.expand_dims(spectrogram, axis=2)  # Adăugăm dimensiunea corectă
     return spectrogram
+'''
 
+def load_sound(filename):
+
+    file_path = filename
+    if (isinstance(filename,tf.Tensor)):
+        file_path = filename.numpy().decode('utf-8')
+
+
+    wav, sr = librosa.load(file_path, sr=TARGET_SAMPLE_RATE)
+
+    # Padding la o durată fixă de 3 secunde
+    wav = librosa.util.fix_length(wav, size=TARGET_SAMPLE_RATE * DURATION)
+
+    return wav
+
+
+def create_spectrogram(file_path):
+    wav = load_sound(file_path)
+    mel_spectrogram = librosa.feature.melspectrogram(
+        y=wav, sr=TARGET_SAMPLE_RATE, n_mels=N_MELS, n_fft=N_FFT, hop_length=HOP_LENGTH, fmax=8000
+    )
+    mel_spectrogram = librosa.power_to_db(mel_spectrogram, ref=np.max)
+
+    # Verificăm dimensiunea spectrogramei
+    num_frames = mel_spectrogram.shape[1]
+
+    if num_frames < 1400:
+        # Adăugăm padding cu zero pentru a face spectrograma de dimensiunea 1400
+        mel_spectrogram = np.pad(mel_spectrogram, ((0, 0), (0, 1400 - num_frames)), mode='constant')
+    elif num_frames > 1400:
+        # Decupăm spectrograma pentru a face dimensiunea 1400
+        mel_spectrogram = mel_spectrogram[:, :1400]
+
+    # Adăugăm o dimensiune suplimentară pentru intrarea modelului
+    mel_spectrogram = np.expand_dims(mel_spectrogram, axis=-1)
+    print(mel_spectrogram.shape)
+
+    #mel_spectrogram.shape = (N_MELS, 1400, 1)  # Asigură-te că setăm dimensiunile
+
+    return mel_spectrogram
 
 def classify_audio(stream):
     frames = []
@@ -120,30 +201,27 @@ def classify_audio(stream):
 
     temp_filename = 'temp_audio.mp3'
     save_audio_to_mp3(audio_data_bytes, temp_filename)
-    audio_tensor = load_sound(temp_filename)
-    
 
-    audio_tensor = tf.expand_dims(audio_tensor, axis=0)
-    prediction = model.predict(audio_tensor)
+    mel_spectrogram = create_spectrogram(temp_filename)  # Folosește funcția create_spectrogram
+    mel_spectrogram = np.expand_dims(mel_spectrogram, axis=0)  # Adaugă dimensiunea batch-ului
+    print("S: ",mel_spectrogram.shape)
+    prediction = model.predict(mel_spectrogram)
+
     print(prediction)
     predicted_class = np.argmax(prediction, axis=1)
     predicted_probabilities = prediction[0]
     max_probability = np.max(predicted_probabilities)
 
     from matplotlib import pyplot as plt
-    import os
-
-    spectrogram = load_sound(temp_filename)
+    print(f"Spectrogram shape: {mel_spectrogram.shape}")
     plt.figure(figsize=(30, 20))
-    plt.imshow(tf.transpose(spectrogram)[0])
+    plt.imshow(mel_spectrogram[0, :, :, 0].T, aspect='auto', origin='lower', cmap='viridis')  # Afișează corect spectrograma
     plt.title(f"{folders[predicted_class[0]]}-{max_probability*100}")
-
-    output_path = os.path.join(os.getcwd(), 'spectrogram.png')
+    output_path = 'spectrogram.png'
     plt.savefig(output_path)
-    print(f"Spectrograma salvată la: {output_path}")
-    import subprocess
+    print(f"Spectrogram saved at: {output_path}")
     subprocess.run(["xdg-open", output_path])
-
+    
     if max_probability >= 0.5:
         return folders[predicted_class[0]], max_probability
     else:
@@ -192,6 +270,7 @@ def audio_classification_thread():
 
 def object_detection_thread():
     model = YOLO('yolov8n.pt')
+    
     print(model.names)
     cap = cv2.VideoCapture(0)
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
@@ -214,6 +293,7 @@ def object_detection_thread():
     start_frame = imutils.resize(start_frame, width = 500)
     start_frame = cv2.cvtColor(start_frame,cv2.COLOR_BGR2GRAY)
     start_frame = cv2.GaussianBlur(start_frame, (21,21), 0)
+
 
     while True and not deactivate_camera:
         ret, frame = cap.read()
@@ -244,15 +324,14 @@ def object_detection_thread():
                         cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
             if object_detected == False and (current_time - last_alert_time) > alert_interval:
-                send_alert(100, "Necunoscut", "Video")
+                #send_alert(100, "Necunoscut", "Video")
                 last_alert_time = current_time
 
-        cv2.imshow('YOLOv8 Object Detection', frame)
         frames.append(frame)
 
         current_time = time.time()
         if object_detected and (current_time - last_alert_time) > alert_interval:
-            send_alert(confidence_detected, detected_object_name, "Video")
+            #send_alert(confidence_detected, detected_object_name, "Video")
             last_alert_time = current_time
 
         if current_time - start_time >= 10:
@@ -274,15 +353,15 @@ def object_detection_thread():
     cv2.destroyAllWindows()
 
 if __name__ == "__main__":
-    #audio_thread = threading.Thread(target=audio_classification_thread)
-    object_detection_thread = threading.Thread(target=object_detection_thread)
-    deactivate_thread = threading.Thread(target=fetch_camera_deactivate) 
+    audio_thread = threading.Thread(target=audio_classification_thread)
+    #object_detection_thread = threading.Thread(target=object_detection_thread)
+    #deactivate_thread = threading.Thread(target=fetch_camera_deactivate) 
 
-    #audio_thread.start()
-    object_detection_thread.start()
-    deactivate_thread.start()
+    audio_thread.start()
+    #object_detection_thread.start()
+    #deactivate_thread.start()
 
-    #audio_thread.join()
-    object_detection_thread.join()
-    deactivate_thread.join()
+    audio_thread.join()
+    #object_detection_thread.join()
+    #deactivate_thread.join()
 
