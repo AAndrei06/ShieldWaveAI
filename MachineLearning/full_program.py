@@ -26,12 +26,12 @@ torch.set_num_threads(4)
 '''
 
 logging.getLogger('ultralytics').setLevel(logging.CRITICAL)
-model = keras.models.load_model('mel_librosa_1400x300_model')
+model = keras.models.load_model('new_3c_mel_librosa_1200_1400x300_model')
 #folders = joblib.load("class_labels2.pkl")
 #folders = ['door', 'voice', 'glass','silence']
 #folders = ['door', 'voice', 'glass', 'footsteps','silence','dog']
-#folders = joblib.load("class_labels2.pkl")
-folders = ['door', 'voice', 'glass', 'silence', 'dog', 'footsteps']
+folders = joblib.load("3c_mel_class_1200_labels.pkl")
+#folders = ['door', 'voice', 'glass', 'silence', 'dog', 'footsteps']
 
 command = ['ffmpeg',
             '-f', 'rawvideo',
