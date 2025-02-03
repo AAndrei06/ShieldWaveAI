@@ -78,4 +78,62 @@ class GetDeactivateInfo(APIView):
         
         return Response(deactivation, status=200)
 
+class GetCameraDeactivateInfo(APIView):
+    def get(self, request, *args, **kwargs):
+        auth_token = request.GET.get("auth_token")
+        print(auth_token)
+
+        deactivations_ref = db.collection("deactivateCameras")
+        query = deactivations_ref.where("user_token", "==", auth_token).get()
+        if not query:
+            return Response({"error": "No matching document found"}, status=404)
+
+        deactivation = query[0].to_dict()
+        document_id = query[0].id
+        deactivations_ref.document(document_id).delete()
+        
+        return Response(deactivation, status=200)
+
+class GetMicDeactivateInfo(APIView):
+    def get(self, request, *args, **kwargs):
+        auth_token = request.GET.get("auth_token")
+        print(auth_token)
+
+        deactivations_ref = db.collection("deactivateMicrophones")
+        query = deactivations_ref.where("user_token", "==", auth_token).get()
+        if not query:
+            return Response({"error": "No matching document found"}, status=404)
+
+        deactivation = query[0].to_dict()
+        document_id = query[0].id
+        deactivations_ref.document(document_id).delete()
+        
+        return Response(deactivation, status=200)
+
+class InitialCleanup(APIView):
+    def get(self, request, *args, **kwargs):
+        auth_token = request.GET.get("auth_token")
+
+        mic_ref = db.collection("deactivateMicrophones")
+        camera_ref = db.collection("deactivateCameras")
+        system_ref = db.collection("deactivations")
+
+        mic = mic_ref.where("user_token", "==", auth_token).get()
+        camera = camera_ref.where("user_token", "==", auth_token).get()
+        system = system_ref.where("user_token", "==", auth_token).get()
+
+        if mic:
+            mic_id = mic[0].id
+            mic_ref.document(mic_id).delete()
+
+        if camera:
+            camera_id = camera[0].id
+            camera_ref.document(camera_id).delete()
+
+        if system:
+            system_id = system[0].id
+            system_ref.document(system_id).delete()
+        
+        return Response("Cleanup finished!", status=200)
+
        
