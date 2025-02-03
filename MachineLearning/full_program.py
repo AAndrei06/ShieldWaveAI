@@ -35,7 +35,8 @@ folders = joblib.load("3c_mel_class_1200_labels.pkl")
 #folders = ['door', 'voice', 'glass', 'silence', 'dog', 'footsteps']
 
 
-LIVE_KEY = "d4jp-wysv-7e8q-67sp-3efu"
+#LIVE_KEY = "d4jp-wysv-7e8q-67sp-3efu"
+LIVE_KEY=""
 CHUNK = 1024
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
@@ -73,8 +74,8 @@ def livestream():
 	cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
 	cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
-    if LIVE_KEY == "":
-        return
+	if LIVE_KEY == "":
+		return
 
 	command = ['ffmpeg',
 				'-f', 'rawvideo',
@@ -376,15 +377,21 @@ if __name__ == "__main__":
     audio_thread = threading.Thread(target=audio_classification_thread)
     object_detection_thread = threading.Thread(target=object_detection_thread)
     livestream_thread = threading.Thread(target=livestream)
-    #deactivate_thread = threading.Thread(target=fetch_camera_deactivate) 
+    deactivate_thread = threading.Thread(target=fetch_camera_deactivate)
+    cam_deactivate_thread = threading.Thread(target=fetch_actual_camera_deactivate)
+    mic_deactivate_thread = threading.Thread(target=fetch_actual_mic_deactivate)  
 
     audio_thread.start()
     object_detection_thread.start()
     livestream_thread.start()
-    #deactivate_thread.start()
+    deactivate_thread.start()
+    cam_deactivate_thread.start()
+    mic_deactivate_thread.start()
 
     audio_thread.join()
     object_detection_thread.join()
     livestream_thread.join()
-    #deactivate_thread.join()
+    deactivate_thread.join()
+    cam_deactivate_thread.join()
+    mic_deactivate_thread.join()
 
