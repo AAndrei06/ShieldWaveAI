@@ -28,37 +28,11 @@ torch.set_num_threads(4)
 logging.getLogger('ultralytics').setLevel(logging.CRITICAL)
 model = keras.models.load_model('new_3c_mel_librosa_1200_1400x300_model')
 #folders = joblib.load("class_labels2.pkl")
-#folders = ['door', 'voice', 'glass','silence']
-#folders = ['door', 'voice', 'glass', 'footsteps','silence','dog']
 folders = joblib.load("3c_mel_class_1200_labels.pkl")
 #folders = ['door', 'voice', 'glass', 'silence', 'dog', 'footsteps']
 
-command = ['ffmpeg',
-            '-f', 'rawvideo',
-            '-pix_fmt', 'bgr24',
-            '-s','640x480',
-            '-i','-',
-            '-ar', '44100',
-            '-ac', '2',
-            '-acodec', 'pcm_s16le',
-            '-f', 's16le',
-            '-ac', '2',
-            '-i','/dev/zero',   
-            '-acodec','aac',
-            '-ab','128k',
-            '-strict','experimental',
-            '-vcodec','h264',
-            '-pix_fmt','yuv420p',
-            '-g', '50',
-            '-vb','1000k',
-            '-profile:v', 'baseline',
-            '-preset', 'ultrafast',
-            '-r', '30',
-            '-f', 'flv', 
-            'rtmp://a.rtmp.youtube.com/live2/d4jp-wysv-7e8q-67sp-3efu']
 
-
-
+LIVE_KEY = "d4jp-wysv-7e8q-67sp-3efu"
 CHUNK = 1024
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
@@ -70,12 +44,51 @@ LIST_OF_VALID = ['person','bicycle','car','motorcycle','bus','truck','bird','cat
                  'cow','elephant','bear','zebra']
 
 BATCH_SIZE = 4
-SAMPLE_RATE = 44100  # Fișierele tale sunt 44.1 kHz
-TARGET_SAMPLE_RATE = 16000  # Resamplează la 16 kHz
-DURATION = 3  # Durata fișierului audio în secunde
-N_MELS = 300  # Număr de benzi Mel
-N_FFT = 1024  # Număr de puncte FFT
+SAMPLE_RATE = 44100
+TARGET_SAMPLE_RATE = 16000
+DURATION = 3
+N_MELS = 300
+N_FFT = 1024
 HOP_LENGTH = int((TARGET_SAMPLE_RATE * DURATION) / 1400)
+
+def livestream():
+	cap = cv2.VideoCapture(2)
+	cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+	cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
+	command = ['ffmpeg',
+				'-f', 'rawvideo',
+				'-pix_fmt', 'bgr24',
+				'-s','640x480',
+				'-i','-',
+				'-ar', '44100',
+				'-ac', '2',
+				'-acodec', 'pcm_s16le',
+				'-f', 's16le',
+				'-ac', '2',
+				'-i','/dev/zero',   
+				'-acodec','aac',
+				'-ab','128k',
+				'-strict','experimental',
+				'-vcodec','h264',
+				'-pix_fmt','yuv420p',
+				'-g', '50',
+				'-vb','2500k',
+				'-profile:v', 'baseline',
+				'-preset', 'ultrafast',
+				'-r', '30',
+				'-f', 'flv', 
+				f'rtmp://a.rtmp.youtube.com/live2/{LIVE_KEY}']
+
+
+	pipe = subprocess.Popen(command, stdin=subprocess.PIPE)
+	while True:
+		ret, frame = cap.read()
+
+		pipe.stdin.write(frame.tostring())
+
+	pipe.kill()
+	cap.release()
 
 def fetch_camera_deactivate():
     global deactivate_camera
@@ -94,62 +107,13 @@ def fetch_camera_deactivate():
             print(f"Eroare la cerere: {e}")
         
         time.sleep(5)
-'''
-def save_audio_to_wav(audio_data_bytes, filename):
-    with wave.open(filename, 'wb') as wf:
-        wf.setnchannels(CHANNELS)
-        wf.setsampwidth(2)
-        wf.setframerate(RATE)
-        wf.writeframes(audio_data_bytes)
-'''
-'''
-def save_audio_to_mp3(audio_data_bytes, filename):
-    audio = AudioSegment.from_raw(io.BytesIO(audio_data_bytes), sample_width=2, frame_rate=RATE, channels=CHANNELS)
-    audio.export(filename, format="mp3")
-'''
+
+
 def save_audio_to_mp3(audio_data_bytes, filename):
     audio = AudioSegment.from_raw(io.BytesIO(audio_data_bytes), sample_width=2, frame_rate=44100, channels=1)
     bitrate = "122k"
     audio.export(filename, format="mp3", bitrate=bitrate)
-'''
-def load_sound(filename):
-    file_contents = tf.io.read_file(filename)
-    wav, sample_rate = tf.audio.decode_wav(file_contents, desired_channels=1)
-    wav = tf.squeeze(wav, axis=-1)
-    sample_rate = tf.cast(sample_rate, dtype=tf.int64)
-    wav = tfio.audio.resample(wav, rate_in=sample_rate, rate_out=16000)
-    wav = wav[:48000]
-    zero_padding = tf.zeros([48000] - tf.shape(wav), dtype=tf.float32)
-    wav = tf.concat([zero_padding, wav], 0)
-    spectrogram = tf.signal.stft(wav, frame_length=320, frame_step=32)
-    spectrogram = tf.abs(spectrogram)
-    spectrogram = tf.expand_dims(spectrogram, axis=-1)
-    return spectrogram
-'''
 
-
-
-'''
-def load_sound(filename):
-    res = tfio.audio.AudioIOTensor(filename, dtype=tf.float32)
-    tensor = res.to_tensor()
-    tensor = tf.math.reduce_sum(tensor, axis=1) / 2  # Calculul mediei pe canale
-    sample_rate = res.rate
-
-    sample_rate = tf.cast(sample_rate, dtype=tf.int64)
-    wav = tfio.audio.resample(tensor, rate_in=sample_rate, rate_out=16000)
-
-    # Trunchierea și completarea cu zero-uri la 48000
-    wav = wav[:48000]
-    zero_padding = tf.zeros([48000] - tf.shape(wav), dtype=tf.float32)
-    wav = tf.concat([zero_padding, wav], 0)
-
-    # Generarea spectrogramelor folosind STFT
-    spectrogram = tf.signal.stft(wav, frame_length=320, frame_step=32)
-    spectrogram = tf.abs(spectrogram)
-    spectrogram = tf.expand_dims(spectrogram, axis=2)  # Adăugăm dimensiunea corectă
-    return spectrogram
-'''
 
 def load_sound(filename):
 
@@ -219,8 +183,8 @@ def classify_audio(stream):
     plt.title(f"{folders[predicted_class[0]]}-{max_probability*100}")
     output_path = 'spectrogram.png'
     plt.savefig(output_path)
-    print(f"Spectrogram saved at: {output_path}")
-    subprocess.run(["xdg-open", output_path])
+    #print(f"Spectrogram saved at: {output_path}")
+    #subprocess.run(["xdg-open", output_path])
     
     if max_probability >= 0.5:
         return folders[predicted_class[0]], max_probability
@@ -270,8 +234,6 @@ def audio_classification_thread():
 
 def object_detection_thread():
     model = YOLO('yolov8n.pt')
-    
-    print(model.names)
     cap = cv2.VideoCapture(0)
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     fps = 9
@@ -306,7 +268,7 @@ def object_detection_thread():
         frame_bw = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         frame_bw = cv2.GaussianBlur(frame_bw, (5,5), 0)
         difference = cv2.absdiff(frame_bw, start_frame)
-
+        current_time = time.time()
         threshold = cv2.threshold(difference, 25, 255, cv2.THRESH_BINARY)[1]
         start_frame = frame_bw
         if threshold.sum() > 200000:
@@ -329,7 +291,7 @@ def object_detection_thread():
 
         frames.append(frame)
 
-        current_time = time.time()
+        
         if object_detected and (current_time - last_alert_time) > alert_interval:
             #send_alert(confidence_detected, detected_object_name, "Video")
             last_alert_time = current_time
@@ -354,14 +316,17 @@ def object_detection_thread():
 
 if __name__ == "__main__":
     audio_thread = threading.Thread(target=audio_classification_thread)
-    #object_detection_thread = threading.Thread(target=object_detection_thread)
+    object_detection_thread = threading.Thread(target=object_detection_thread)
+    livestream_thread = threading.Thread(target=livestream)
     #deactivate_thread = threading.Thread(target=fetch_camera_deactivate) 
 
     audio_thread.start()
-    #object_detection_thread.start()
+    object_detection_thread.start()
+    livestream_thread.start()
     #deactivate_thread.start()
 
     audio_thread.join()
-    #object_detection_thread.join()
+    object_detection_thread.join()
+    livestream_thread.join()
     #deactivate_thread.join()
 
