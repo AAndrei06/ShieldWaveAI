@@ -25,6 +25,9 @@ import torch
 torch.set_num_threads(4)
 '''
 
+
+
+
 logging.getLogger('ultralytics').setLevel(logging.CRITICAL)
 model = keras.models.load_model('new_3c_mel_librosa_1200_1400x300_model')
 #folders = joblib.load("class_labels2.pkl")
@@ -40,6 +43,8 @@ RATE = 44100
 RECORD_SECONDS = 3
 AUTH_TOKEN="MFnFu8ZiTVhNqnSoavQbhsT3dcx9uvAz"
 deactivate_camera = False
+deactivate_actual_camera = False
+deactivate_actual_microphone = False
 LIST_OF_VALID = ['person','bicycle','car','motorcycle','bus','truck','bird','cat','dog','horse','sheep',
                  'cow','elephant','bear','zebra']
 
@@ -51,10 +56,25 @@ N_MELS = 300
 N_FFT = 1024
 HOP_LENGTH = int((TARGET_SAMPLE_RATE * DURATION) / 1400)
 
+
+try:
+    url = "http://127.0.0.1:8000/api/initial_clean/"
+    response = requests.get(url, params={"auth_token": AUTH_TOKEN})
+    if response.status_code == 200:
+        data = response.json()
+        print("Data::::::::", data)
+except Exception as e:
+    print(f"Eroare la cerere: {e}")
+
+
+
 def livestream():
 	cap = cv2.VideoCapture(2)
 	cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
 	cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
+    if LIVE_KEY == "":
+        return
 
 	command = ['ffmpeg',
 				'-f', 'rawvideo',
@@ -82,7 +102,7 @@ def livestream():
 
 
 	pipe = subprocess.Popen(command, stdin=subprocess.PIPE)
-	while True:
+	while True and LIVE_KEY != "":
 		ret, frame = cap.read()
 
 		pipe.stdin.write(frame.tostring())
@@ -101,6 +121,44 @@ def fetch_camera_deactivate():
 
                 if (data['user_token'] == AUTH_TOKEN and data['state'] == True):
                     deactivate_camera = True
+            else:
+                print(f"No document found")
+        except Exception as e:
+            print(f"Eroare la cerere: {e}")
+        
+        time.sleep(5)
+
+def fetch_actual_camera_deactivate():
+    global deactivate_actual_camera
+    global deactivate_camera
+    while True and not deactivate_camera and not deactivate_actual_camera:
+        try:
+            url = "http://127.0.0.1:8000/api/deactivate_cam/"
+            response = requests.get(url, params={"auth_token": AUTH_TOKEN})
+            if response.status_code == 200:
+                data = response.json()
+
+                if (data['user_token'] == AUTH_TOKEN and data['state'] == True):
+                    deactivate_actual_camera = True
+            else:
+                print(f"No document found")
+        except Exception as e:
+            print(f"Eroare la cerere: {e}")
+        
+        time.sleep(5)
+
+def fetch_actual_mic_deactivate():
+    global deactivate_actual_microphone
+    global deactivate_camera
+    while True and not deactivate_camera and not deactivate_actual_microphone:
+        try:
+            url = "http://127.0.0.1:8000/api/deactivate_mic/"
+            response = requests.get(url, params={"auth_token": AUTH_TOKEN})
+            if response.status_code == 200:
+                data = response.json()
+
+                if (data['user_token'] == AUTH_TOKEN and data['state'] == True):
+                    deactivate_actual_microphone = True
             else:
                 print(f"No document found")
         except Exception as e:
@@ -222,7 +280,7 @@ def audio_classification_thread():
     p = pyaudio.PyAudio()
     stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
     print("Audio Classification Running...")
-    while True and not deactivate_camera:
+    while True and not deactivate_camera and not deactivate_actual_microphone:
         label = classify_audio(stream)
         #send_alert(int(label[1]*100), label[0],"Audio")
         print(f"Audio classified as: {label}")
@@ -257,7 +315,7 @@ def object_detection_thread():
     start_frame = cv2.GaussianBlur(start_frame, (21,21), 0)
 
 
-    while True and not deactivate_camera:
+    while True and not deactivate_camera and not deactivate_actual_camera:
         ret, frame = cap.read()
         results = model(frame, imgsz=440)
         object_detected = False
