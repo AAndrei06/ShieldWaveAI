@@ -345,14 +345,14 @@ def object_detection_thread():
                         cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
             if object_detected == False and (current_time - last_alert_time) > alert_interval:
-                #send_alert(100, "Necunoscut", "Video")
+                send_alert(100, "Necunoscut", "Video")
                 last_alert_time = current_time
 
         frames.append(frame)
 
         
         if object_detected and (current_time - last_alert_time) > alert_interval:
-            #send_alert(confidence_detected, detected_object_name, "Video")
+            send_alert(confidence_detected, detected_object_name, "Video")
             last_alert_time = current_time
 
         if current_time - start_time >= 10:
