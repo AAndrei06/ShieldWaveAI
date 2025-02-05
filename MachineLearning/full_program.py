@@ -19,15 +19,6 @@ import imutils
 import subprocess
 import librosa
 
-# Ca să îl fac mai rapid
-'''
-import torch
-torch.set_num_threads(4)
-'''
-
-
-
-
 logging.getLogger('ultralytics').setLevel(logging.CRITICAL)
 model = keras.models.load_model('new_3c_mel_librosa_1200_1400x300_model')
 #folders = joblib.load("class_labels2.pkl")
@@ -113,59 +104,54 @@ def livestream():
 
 def fetch_camera_deactivate():
     global deactivate_camera
-    while True and not deactivate_camera:
-        try:
-            url = "http://127.0.0.1:8000/api/deactivate/"
-            response = requests.get(url, params={"auth_token": AUTH_TOKEN})
-            if response.status_code == 200:
-                data = response.json()
-
-                if (data['user_token'] == AUTH_TOKEN and data['state'] == True):
-                    deactivate_camera = True
-            else:
-                print(f"No document found")
-        except Exception as e:
-            print(f"Eroare la cerere: {e}")
-        
-        time.sleep(5)
-
-def fetch_actual_camera_deactivate():
     global deactivate_actual_camera
-    global deactivate_camera
-    while True and not deactivate_camera and not deactivate_actual_camera:
-        try:
-            url = "http://127.0.0.1:8000/api/deactivate_cam/"
-            response = requests.get(url, params={"auth_token": AUTH_TOKEN})
-            if response.status_code == 200:
-                data = response.json()
-
-                if (data['user_token'] == AUTH_TOKEN and data['state'] == True):
-                    deactivate_actual_camera = True
-            else:
-                print(f"No document found")
-        except Exception as e:
-            print(f"Eroare la cerere: {e}")
-        
-        time.sleep(5)
-
-def fetch_actual_mic_deactivate():
     global deactivate_actual_microphone
-    global deactivate_camera
-    while True and not deactivate_camera and not deactivate_actual_microphone:
-        try:
-            url = "http://127.0.0.1:8000/api/deactivate_mic/"
-            response = requests.get(url, params={"auth_token": AUTH_TOKEN})
-            if response.status_code == 200:
-                data = response.json()
 
-                if (data['user_token'] == AUTH_TOKEN and data['state'] == True):
-                    deactivate_actual_microphone = True
-            else:
-                print(f"No document found")
-        except Exception as e:
-            print(f"Eroare la cerere: {e}")
+    while True and not deactivate_camera:
+        if deactivate_camera == False:
+            try:
+                url = "http://127.0.0.1:8000/api/deactivate/"
+                response = requests.get(url, params={"auth_token": AUTH_TOKEN})
+                if response.status_code == 200:
+                    data = response.json()
+
+                    if (data['user_token'] == AUTH_TOKEN and data['state'] == True):
+                        deactivate_camera = True
+                else:
+                    print(f"No document found")
+            except Exception as e:
+                print(f"Eroare la cerere: {e}")
+
+        if deactivate_actual_camera == False:
+            try:
+                url = "http://127.0.0.1:8000/api/deactivate_cam/"
+                response = requests.get(url, params={"auth_token": AUTH_TOKEN})
+                if response.status_code == 200:
+                    data = response.json()
+
+                    if (data['user_token'] == AUTH_TOKEN and data['state'] == True):
+                        deactivate_actual_camera = True
+                else:
+                    print(f"No document found")
+            except Exception as e:
+                print(f"Eroare la cerere: {e}")
+
+        if deactivate_actual_microphone == False:
+            try:
+                url = "http://127.0.0.1:8000/api/deactivate_mic/"
+                response = requests.get(url, params={"auth_token": AUTH_TOKEN})
+                if response.status_code == 200:
+                    data = response.json()
+
+                    if (data['user_token'] == AUTH_TOKEN and data['state'] == True):
+                        deactivate_actual_microphone = True
+                else:
+                    print(f"No document found")
+            except Exception as e:
+                print(f"Eroare la cerere: {e}")
         
-        time.sleep(5)
+        time.sleep(7)
+
 
 
 def save_audio_to_mp3(audio_data_bytes, filename):
@@ -180,10 +166,8 @@ def load_sound(filename):
     if (isinstance(filename,tf.Tensor)):
         file_path = filename.numpy().decode('utf-8')
 
-
     wav, sr = librosa.load(file_path, sr=TARGET_SAMPLE_RATE)
 
-    # Padding la o durată fixă de 3 secunde
     wav = librosa.util.fix_length(wav, size=TARGET_SAMPLE_RATE * DURATION)
 
     return wav
@@ -196,21 +180,17 @@ def create_spectrogram(file_path):
     )
     mel_spectrogram = librosa.power_to_db(mel_spectrogram, ref=np.max)
 
-    # Verificăm dimensiunea spectrogramei
     num_frames = mel_spectrogram.shape[1]
 
     if num_frames < 1400:
-        # Adăugăm padding cu zero pentru a face spectrograma de dimensiunea 1400
         mel_spectrogram = np.pad(mel_spectrogram, ((0, 0), (0, 1400 - num_frames)), mode='constant')
     elif num_frames > 1400:
-        # Decupăm spectrograma pentru a face dimensiunea 1400
         mel_spectrogram = mel_spectrogram[:, :1400]
 
-    # Adăugăm o dimensiune suplimentară pentru intrarea modelului
     mel_spectrogram = np.expand_dims(mel_spectrogram, axis=-1)
     print(mel_spectrogram.shape)
 
-    #mel_spectrogram.shape = (N_MELS, 1400, 1)  # Asigură-te că setăm dimensiunile
+    #mel_spectrogram.shape = (N_MELS, 1400, 1)
 
     return mel_spectrogram
 
@@ -225,8 +205,8 @@ def classify_audio(stream):
     temp_filename = 'temp_audio.mp3'
     save_audio_to_mp3(audio_data_bytes, temp_filename)
 
-    mel_spectrogram = create_spectrogram(temp_filename)  # Folosește funcția create_spectrogram
-    mel_spectrogram = np.expand_dims(mel_spectrogram, axis=0)  # Adaugă dimensiunea batch-ului
+    mel_spectrogram = create_spectrogram(temp_filename)
+    mel_spectrogram = np.expand_dims(mel_spectrogram, axis=0)
     print("S: ",mel_spectrogram.shape)
     prediction = model.predict(mel_spectrogram)
 
@@ -238,10 +218,11 @@ def classify_audio(stream):
     from matplotlib import pyplot as plt
     print(f"Spectrogram shape: {mel_spectrogram.shape}")
     plt.figure(figsize=(30, 20))
-    plt.imshow(mel_spectrogram[0, :, :, 0].T, aspect='auto', origin='lower', cmap='viridis')  # Afișează corect spectrograma
+    plt.imshow(mel_spectrogram[0, :, :, 0].T, aspect='auto', origin='lower', cmap='viridis')
     plt.title(f"{folders[predicted_class[0]]}-{max_probability*100}")
     output_path = 'spectrogram.png'
     plt.savefig(output_path)
+
     #print(f"Spectrogram saved at: {output_path}")
     #subprocess.run(["xdg-open", output_path])
     
@@ -306,7 +287,6 @@ def object_detection_thread():
     last_alert_time = 0
     alert_interval = 5
 
-    # Motion detection
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
@@ -378,20 +358,14 @@ if __name__ == "__main__":
     object_detection_thread = threading.Thread(target=object_detection_thread)
     livestream_thread = threading.Thread(target=livestream)
     deactivate_thread = threading.Thread(target=fetch_camera_deactivate)
-    cam_deactivate_thread = threading.Thread(target=fetch_actual_camera_deactivate)
-    mic_deactivate_thread = threading.Thread(target=fetch_actual_mic_deactivate)  
 
     audio_thread.start()
     object_detection_thread.start()
     livestream_thread.start()
     deactivate_thread.start()
-    cam_deactivate_thread.start()
-    mic_deactivate_thread.start()
 
     audio_thread.join()
     object_detection_thread.join()
     livestream_thread.join()
     deactivate_thread.join()
-    cam_deactivate_thread.join()
-    mic_deactivate_thread.join()
 
