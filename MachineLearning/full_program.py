@@ -214,7 +214,7 @@ def classify_audio(stream):
     predicted_class = np.argmax(prediction, axis=1)
     predicted_probabilities = prediction[0]
     max_probability = np.max(predicted_probabilities)
-
+    '''
     from matplotlib import pyplot as plt
     print(f"Spectrogram shape: {mel_spectrogram.shape}")
     plt.figure(figsize=(30, 20))
@@ -225,7 +225,7 @@ def classify_audio(stream):
 
     #print(f"Spectrogram saved at: {output_path}")
     #subprocess.run(["xdg-open", output_path])
-    
+    '''
     if max_probability >= 0.5:
         return folders[predicted_class[0]], max_probability
     else:
