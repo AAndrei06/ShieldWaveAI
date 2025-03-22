@@ -264,7 +264,13 @@ def audio_classification_thread():
     print("Audio Classification Running...")
     while True and not deactivate_camera and not deactivate_actual_microphone:
         label = classify_audio(stream)
-        #send_alert(int(label[1]*100), label[0],"Audio")
+        print(label[0])
+        print(int(label[1]*100))
+        if label[1]*100 > 50 and label[0] != "silence":
+            if (label[0] == "dog"):
+                send_alert(int(label[1]*100), "dog_audio","Audio")
+            else:
+                send_alert(int(label[1]*100), label[0],"Audio")
         print(f"Audio classified as: {label}")
 
     stream.stop_stream()
