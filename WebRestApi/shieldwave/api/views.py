@@ -9,6 +9,7 @@ from datetime import datetime
 import pytz
 import uuid
 import time
+import threading
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 service_account_path = os.path.join(BASE_DIR, 'megaanunt-firebase-adminsdk-4w8vs-139038af14.json')
@@ -74,7 +75,15 @@ class GetDeactivateInfo(APIView):
 
         deactivation = query[0].to_dict()
         document_id = query[0].id
-        deactivations_ref.document(document_id).delete()
+        
+        # Funcție care șterge documentul după 20 de secunde
+        def delayed_delete():
+            time.sleep(60)  # Așteaptă 20 de secunde
+            deactivations_ref.document(document_id).delete()
+            print(f"Document {document_id} deleted after 20 seconds.")
+
+        # Pornim un thread care va șterge documentul după delay
+        threading.Thread(target=delayed_delete, daemon=True).start()
         
         return Response(deactivation, status=200)
 
