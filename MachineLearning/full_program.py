@@ -111,7 +111,7 @@ def fetch_activate():
     global deactivate_actual_microphone
     global truly_deactivate
 
-    while deactivate_camera and truly_deactivate == False:
+    while truly_deactivate == False:
         print("ActivateThread Working -------------")
         if deactivate_camera == True:
             try:
