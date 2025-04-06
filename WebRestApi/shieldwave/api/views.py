@@ -140,10 +140,12 @@ class InitialCleanup(APIView):
         mic_ref = db.collection("deactivateMicrophones")
         camera_ref = db.collection("deactivateCameras")
         system_ref = db.collection("deactivations")
+        activate_ref = db.collection("activations")
 
         mic = mic_ref.where("user_token", "==", auth_token).get()
         camera = camera_ref.where("user_token", "==", auth_token).get()
         system = system_ref.where("user_token", "==", auth_token).get()
+        activate = activate_ref.where("user_token","==",auth_token).get()
 
         if mic:
             mic_id = mic[0].id
@@ -156,7 +158,65 @@ class InitialCleanup(APIView):
         if system:
             system_id = system[0].id
             system_ref.document(system_id).delete()
+
+        if activate:
+            activate_id = activate[0].id
+            activate_ref.document(activate_id).delete()
         
         return Response("Cleanup finished!", status=200)
 
        
+class GetActivateInfo(APIView):
+    def get(self, request, *args, **kwargs):
+        auth_token = request.GET.get("auth_token")
+        state = request.GET.get('deactivate_variable')
+        print('Activate INFO is THERE')
+        print(auth_token)
+        print(state)
+        print('------------------------')
+
+        activations_ref = db.collection("activations")
+        query = activations_ref.where("user_token", "==", auth_token).get()
+        
+        if not query:
+            return Response({"error": "No matching document found"}, status=404)
+
+        activation = query[0].to_dict()
+        document_id = query[0].id
+        print("Document found, going to delete ################################################################################3")
+        def delayed_delete():
+            time.sleep(20)  # Așteaptă 20 de secunde
+            activations_ref.document(document_id).delete()
+            print(f"Document {document_id} deleted after 20 seconds.")
+
+        # Pornim un thread care va șterge documentul după delay
+        threading.Thread(target=delayed_delete, daemon=True).start()
+        
+        return Response(activation, status=200)
+
+class ActivityInfo(APIView):
+    def get(self, request, *args, **kwargs):
+        auth_token = request.GET.get("auth_token")
+        state = request.GET.get('deactivate_variable')
+        state = (state == "True")
+        users = db.collection("usersDB")
+        query = users.where("token", "==", auth_token).get()
+        if not query:
+            return Response({"error": "No matching user found"}, status=404)
+
+        document_id = query[0].id
+
+        if (state == True):
+            users.document(document_id).update({
+                "state": "inactive",
+                "last_active": int(time.time())
+            })
+        elif(state == False):
+            users.document(document_id).update({
+                "state": "active",
+                "last_active": int(time.time())
+            })
+
+        print("Document found, going to show #**********************")
+        
+        return Response("Updated", status=200)

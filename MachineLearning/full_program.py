@@ -18,6 +18,7 @@ import io
 import imutils
 import subprocess
 import librosa
+import os
 
 logging.getLogger('ultralytics').setLevel(logging.CRITICAL)
 model = keras.models.load_model('new_3c_mel_librosa_1200_1400x300_model')
@@ -94,7 +95,7 @@ def livestream():
 
 
 	pipe = subprocess.Popen(command, stdin=subprocess.PIPE)
-	while True and LIVE_KEY != "":
+	while LIVE_KEY != "":
 		ret, frame = cap.read()
 
 		pipe.stdin.write(frame.tostring())
@@ -102,12 +103,49 @@ def livestream():
 	pipe.kill()
 	cap.release()
 
+truly_deactivate = False
+
+def fetch_activate():
+    global deactivate_camera
+    global deactivate_actual_camera
+    global deactivate_actual_microphone
+    global truly_deactivate
+
+    while deactivate_camera and truly_deactivate == False:
+        print("ActivateThread Working -------------")
+        if deactivate_camera == True:
+            try:
+                url = "http://127.0.0.1:8000/api/activate/"
+                response = requests.get(url, params={"auth_token": AUTH_TOKEN,'deactivate_variable': deactivate_camera})
+                if response.status_code == 200:
+                    data = response.json()
+                    print(data)
+
+                    current_path = os.getcwd()
+                    parent_path = os.path.dirname(current_path)
+
+                    os.chdir(parent_path)
+                    truly_deactivate = True
+                    os.system("./startup.sh")
+
+                    '''
+                    if (data['user_token'] == AUTH_TOKEN and data['state'] == True):
+                        deactivate_camera = True
+                    '''
+                else:
+                    print(f"No document found to activate")
+            except Exception as e:
+                print(f"Eroare la cerere: {e}")
+        
+        time.sleep(7)
+
+
 def fetch_camera_deactivate():
     global deactivate_camera
     global deactivate_actual_camera
     global deactivate_actual_microphone
 
-    while True and not deactivate_camera:
+    while not deactivate_camera:
         if deactivate_camera == False:
             try:
                 url = "http://127.0.0.1:8000/api/deactivate/"
@@ -262,7 +300,7 @@ def audio_classification_thread():
     p = pyaudio.PyAudio()
     stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
     print("Audio Classification Running...")
-    while True and not deactivate_camera and not deactivate_actual_microphone:
+    while not deactivate_camera and not deactivate_actual_microphone:
         label = classify_audio(stream)
         print(label[0])
         print(int(label[1]*100))
@@ -302,7 +340,7 @@ def object_detection_thread():
     start_frame = cv2.GaussianBlur(start_frame, (21,21), 0)
 
 
-    while True and not deactivate_camera and not deactivate_actual_camera:
+    while not deactivate_camera and not deactivate_actual_camera:
         ret, frame = cap.read()
         results = model(frame, imgsz=440)
         object_detected = False
@@ -359,19 +397,45 @@ def object_detection_thread():
     cap.release()
     cv2.destroyAllWindows()
 
+
+def activity_thread():
+    global deactivate_camera
+    global truly_deactivate
+
+    while truly_deactivate == False:
+        print("Info Working -------------")
+        try:
+            url = "http://127.0.0.1:8000/api/activity_info/"
+            response = requests.get(url, params={"auth_token": AUTH_TOKEN,'deactivate_variable': deactivate_camera})
+            if response.status_code == 200:
+                data = response.json()
+                print(data)
+            else:
+                print(f"No document found to info")
+        except Exception as e:
+            print(f"Eroare la cerere: {e}")
+        
+        time.sleep(7)
+
 if __name__ == "__main__":
     audio_thread = threading.Thread(target=audio_classification_thread)
     object_detection_thread = threading.Thread(target=object_detection_thread)
     livestream_thread = threading.Thread(target=livestream)
     deactivate_thread = threading.Thread(target=fetch_camera_deactivate)
+    activate_thread = threading.Thread(target=fetch_activate)
+    activity_thread = threading.Thread(target=activity_thread)
 
     audio_thread.start()
     object_detection_thread.start()
     livestream_thread.start()
     deactivate_thread.start()
+    activate_thread.start()
+    activity_thread.start()
 
     audio_thread.join()
     object_detection_thread.join()
     livestream_thread.join()
     deactivate_thread.join()
+    activate_thread.join()
+    activity_thread.join()
 
