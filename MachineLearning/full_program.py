@@ -27,8 +27,8 @@ folders = joblib.load("3c_mel_class_1200_labels.pkl")
 #folders = ['door', 'voice', 'glass', 'silence', 'dog', 'footsteps']
 
 
-#LIVE_KEY = "d4jp-wysv-7e8q-67sp-3efu"
-LIVE_KEY=""
+LIVE_KEY = "d4jp-wysv-7e8q-67sp-3efu"
+#LIVE_KEY=""
 CHUNK = 1024
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
@@ -38,6 +38,7 @@ AUTH_TOKEN="MFnFu8ZiTVhNqnSoavQbhsT3dcx9uvAz"
 deactivate_camera = False
 deactivate_actual_camera = False
 deactivate_actual_microphone = False
+truly_deactivate = False
 LIST_OF_VALID = ['person','bicycle','car','motorcycle','bus','truck','bird','cat','dog','horse','sheep',
                  'cow','elephant','bear','zebra']
 
@@ -62,6 +63,7 @@ except Exception as e:
 
 
 def livestream():
+	global truly_deactivate
 	cap = cv2.VideoCapture(2)
 	cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
 	cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
@@ -95,7 +97,7 @@ def livestream():
 
 
 	pipe = subprocess.Popen(command, stdin=subprocess.PIPE)
-	while LIVE_KEY != "":
+	while truly_deactivate == False and deactivate_camera == False:
 		ret, frame = cap.read()
 
 		pipe.stdin.write(frame.tostring())
@@ -103,7 +105,7 @@ def livestream():
 	pipe.kill()
 	cap.release()
 
-truly_deactivate = False
+
 
 def fetch_activate():
     global deactivate_camera
@@ -252,6 +254,7 @@ def classify_audio(stream):
     predicted_class = np.argmax(prediction, axis=1)
     predicted_probabilities = prediction[0]
     max_probability = np.max(predicted_probabilities)
+    
     '''
     from matplotlib import pyplot as plt
     print(f"Spectrogram shape: {mel_spectrogram.shape}")
@@ -264,6 +267,7 @@ def classify_audio(stream):
     #print(f"Spectrogram saved at: {output_path}")
     #subprocess.run(["xdg-open", output_path])
     '''
+    
     if max_probability >= 0.5:
         return folders[predicted_class[0]], max_probability
     else:
