@@ -21,6 +21,18 @@ firebase_admin.initialize_app(cred, {
 db = firestore.client()
 bucket = storage.bucket()
 
+
+class CheckUserExists(APIView):
+    def get(self, request, *args, **kwargs):
+        auth_token = request.GET.get("auth_token")
+
+        users_ref = db.collection("usersDB")
+        query = users_ref.where("token", "==", auth_token).get()
+        if not query:
+            return Response({"state": "NoUser"}, status=200)
+        
+        return Response({"state": "YesUser"}, status=200)
+
 class UploadPredictionView(APIView):
     def post(self, request, *args, **kwargs):  
         file = request.FILES.get('file')
@@ -51,15 +63,31 @@ class UploadPredictionView(APIView):
             'classification': classification,
             'detection_type': detection_type,
             'confidence': int(confidence),
-            'token': auth_token,
             'link': file_url,
             'detection_time': int(detection_time)
         }
-        db.collection('alerts').add(detection_data)
+
+        alerts_ref = db.collection('alerts')
+        query = alerts_ref.where("user_token", "==", auth_token).get()
+        if not query:
+            db.collection('alerts').add({
+                'user_token': auth_token,
+                'alert_list': [detection_data]
+            })
+        else:
+            doc_ref = query[0].reference
+            doc_data = query[0].to_dict()
+            
+            existing_alerts = doc_data.get('alert_list', [])
+            existing_alerts.append(detection_data)
+            
+            doc_ref.update({
+                'alert_list': existing_alerts
+            })
+
 
         return Response({
-            "message": "Detection data uploaded successfully",
-            "data": detection_data
+            "message": "Detection data uploaded successfully"
         }, status=status.HTTP_201_CREATED)
 
 
