@@ -34,7 +34,7 @@ FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 44100
 RECORD_SECONDS = 3
-AUTH_TOKEN="MFnFu8ZiTVhNqnSoavQbhsT3dcx9uvAz"
+AUTH_TOKEN="VVB9wl0DnEwgCALtbG2oAl1OaRagr098"
 deactivate_camera = False
 deactivate_actual_camera = False
 deactivate_actual_microphone = False
@@ -56,7 +56,18 @@ try:
     response = requests.get(url, params={"auth_token": AUTH_TOKEN})
     if response.status_code == 200:
         data = response.json()
-        print("Data::::::::", data)
+except Exception as e:
+    print(f"Eroare la cerere: {e}")
+
+
+try:
+    url = "http://127.0.0.1:8000/api/check_user/"
+    response = requests.get(url, params={"auth_token": AUTH_TOKEN})
+    if response.status_code == 200:
+        data = response.json()
+        print(data)
+        if (data['state'] == "NoUser"):
+            os._exit(0)
 except Exception as e:
     print(f"Eroare la cerere: {e}")
 
