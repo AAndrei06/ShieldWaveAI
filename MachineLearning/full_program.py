@@ -170,7 +170,7 @@ def fetch_camera_activate_deactivate():
         else:
             print("No document found")
 
-        time.sleep(10)
+        time.sleep(12)
         
 
 def activity_thread():
@@ -190,7 +190,7 @@ def activity_thread():
         except Exception as e:
             print(f"Eroare la cerere: {e}")
         
-        time.sleep(10)
+        time.sleep(12)
 
 
 def save_audio_to_mp3(audio_data_bytes, filename):

@@ -147,7 +147,7 @@ class GetUserStatusInfo(APIView):
 
         # Funcție pentru resetare
         def delayed_reset():
-            time.sleep(24)
+            time.sleep(27)
             users_ref.document(document_id).update({
                 "deactivateSystem": "no",
                 "deactivateCam": "no",
