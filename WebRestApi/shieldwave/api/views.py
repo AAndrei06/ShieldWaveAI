@@ -21,6 +21,46 @@ firebase_admin.initialize_app(cred, {
 db = firestore.client()
 bucket = storage.bucket()
 
+
+class CheckUserExists(APIView):
+    def get(self, request, *args, **kwargs):
+        auth_token = request.GET.get("auth_token")
+
+        users_ref = db.collection("usersDB")
+        query = users_ref.where("token", "==", auth_token).get()
+        if not query:
+            return Response({"state": "NoUser"}, status=200)
+        
+        return Response({"state": "YesUser"}, status=200)
+
+class InitialCleanup(APIView):
+    def get(self, request, *args, **kwargs):
+        auth_token = request.GET.get("auth_token")
+
+        users_ref = db.collection("usersDB")
+        query = users_ref.where("token", "==", auth_token).get()
+
+        if not query:
+            return Response({"error": "No matching user found"}, status=404)
+
+        user_doc = query[0]
+        user_id = user_doc.id
+        user_data = user_doc.to_dict()
+
+        if (user_data.get("deactivateSystem") == "yes" or user_data.get("deactivateCam") == "yes" or 
+            user_data.get("deactivateMic") == "yes" or user_data.get("activate") == "yes"):
+            
+            users_ref.document(user_id).update({
+                "deactivateSystem": "no",
+                "deactivateCam": "no",
+                "deactivateMic": "no",
+                "activate": "no"
+            })
+
+        return Response("User fields reset successfully!", status=200)
+
+
+
 class UploadPredictionView(APIView):
     def post(self, request, *args, **kwargs):  
         file = request.FILES.get('file')
@@ -51,148 +91,75 @@ class UploadPredictionView(APIView):
             'classification': classification,
             'detection_type': detection_type,
             'confidence': int(confidence),
-            'token': auth_token,
             'link': file_url,
             'detection_time': int(detection_time)
         }
-        db.collection('alerts').add(detection_data)
+
+        alerts_ref = db.collection('alerts')
+        query = alerts_ref.where("user_token", "==", auth_token).get()
+        if not query:
+            db.collection('alerts').add({
+                'user_token': auth_token,
+                'alert_list': [detection_data]
+            })
+        else:
+            doc_ref = query[0].reference
+            doc_data = query[0].to_dict()
+            
+            existing_alerts = doc_data.get('alert_list', [])
+            existing_alerts.append(detection_data)
+            
+            doc_ref.update({
+                'alert_list': existing_alerts
+            })
+
 
         return Response({
-            "message": "Detection data uploaded successfully",
-            "data": detection_data
+            "message": "Detection data uploaded successfully"
         }, status=status.HTTP_201_CREATED)
 
 
-class GetDeactivateInfo(APIView):
+
+
+class GetUserStatusInfo(APIView):
     def get(self, request, *args, **kwargs):
         auth_token = request.GET.get("auth_token")
-        print(auth_token)
+        print(f"Received token: {auth_token}")
 
-        deactivations_ref = db.collection("deactivations")
-        query = deactivations_ref.where("user_token", "==", auth_token).get()
+        users_ref = db.collection("usersDB")
+        query = users_ref.where("token", "==", auth_token).get()
+
         if not query:
-            return Response({"error": "No matching document found"}, status=404)
+            return Response({"error": "No matching user found"}, status=404)
 
-        deactivation = query[0].to_dict()
-        document_id = query[0].id
-        
-        # Funcție care șterge documentul după 20 de secunde
-        def delayed_delete():
-            time.sleep(20)  # Așteaptă 20 de secunde
-            deactivations_ref.document(document_id).delete()
-            print(f"Document {document_id} deleted after 20 seconds.")
+        user_doc = query[0]
+        user_data = user_doc.to_dict()
+        document_id = user_doc.id
 
-        # Pornim un thread care va șterge documentul după delay
-        threading.Thread(target=delayed_delete, daemon=True).start()
-        
-        return Response(deactivation, status=200)
+        status_info = {
+            "deactivateSystem": user_data.get("deactivateSystem"),
+            "deactivateCam": user_data.get("deactivateCam"),
+            "deactivateMic": user_data.get("deactivateMic"),
+            "activate": user_data.get("activate")
+        }
 
-class GetCameraDeactivateInfo(APIView):
-    def get(self, request, *args, **kwargs):
-        auth_token = request.GET.get("auth_token")
-        print(auth_token)
+        print(f"User status info: {status_info}")
 
-        deactivations_ref = db.collection("deactivateCameras")
-        query = deactivations_ref.where("user_token", "==", auth_token).get()
-        if not query:
-            return Response({"error": "No matching document found"}, status=404)
+        # Funcție pentru resetare
+        def delayed_reset():
+            time.sleep(27)
+            users_ref.document(document_id).update({
+                "deactivateSystem": "no",
+                "deactivateCam": "no",
+                "deactivateMic": "no",
+                "activate": "no"
+            })
 
-        deactivation = query[0].to_dict()
-        document_id = query[0].id
+        if any(value == "yes" for value in status_info.values()):
+            threading.Thread(target=delayed_reset, daemon=True).start()
 
-        def delayed_delete():
-            time.sleep(20)  # Așteaptă 20 de secunde
-            deactivations_ref.document(document_id).delete()
-            print(f"Document {document_id} deleted after 20 seconds.")
+        return Response(status_info, status=200)
 
-        # Pornim un thread care va șterge documentul după delay
-        threading.Thread(target=delayed_delete, daemon=True).start()
-        
-        return Response(deactivation, status=200)
-
-class GetMicDeactivateInfo(APIView):
-    def get(self, request, *args, **kwargs):
-        auth_token = request.GET.get("auth_token")
-        print(auth_token)
-
-        deactivations_ref = db.collection("deactivateMicrophones")
-        query = deactivations_ref.where("user_token", "==", auth_token).get()
-        if not query:
-            return Response({"error": "No matching document found"}, status=404)
-
-        deactivation = query[0].to_dict()
-        document_id = query[0].id
-
-        def delayed_delete():
-            time.sleep(20)  # Așteaptă 20 de secunde
-            deactivations_ref.document(document_id).delete()
-            print(f"Document {document_id} deleted after 20 seconds.")
-
-        # Pornim un thread care va șterge documentul după delay
-        threading.Thread(target=delayed_delete, daemon=True).start()
-        
-        return Response(deactivation, status=200)
-
-class InitialCleanup(APIView):
-    def get(self, request, *args, **kwargs):
-        auth_token = request.GET.get("auth_token")
-
-        mic_ref = db.collection("deactivateMicrophones")
-        camera_ref = db.collection("deactivateCameras")
-        system_ref = db.collection("deactivations")
-        activate_ref = db.collection("activations")
-
-        mic = mic_ref.where("user_token", "==", auth_token).get()
-        camera = camera_ref.where("user_token", "==", auth_token).get()
-        system = system_ref.where("user_token", "==", auth_token).get()
-        activate = activate_ref.where("user_token","==",auth_token).get()
-
-        if mic:
-            mic_id = mic[0].id
-            mic_ref.document(mic_id).delete()
-
-        if camera:
-            camera_id = camera[0].id
-            camera_ref.document(camera_id).delete()
-
-        if system:
-            system_id = system[0].id
-            system_ref.document(system_id).delete()
-
-        if activate:
-            activate_id = activate[0].id
-            activate_ref.document(activate_id).delete()
-        
-        return Response("Cleanup finished!", status=200)
-
-       
-class GetActivateInfo(APIView):
-    def get(self, request, *args, **kwargs):
-        auth_token = request.GET.get("auth_token")
-        state = request.GET.get('deactivate_variable')
-        print('Activate INFO is THERE')
-        print(auth_token)
-        print(state)
-        print('------------------------')
-
-        activations_ref = db.collection("activations")
-        query = activations_ref.where("user_token", "==", auth_token).get()
-        
-        if not query:
-            return Response({"error": "No matching document found"}, status=404)
-
-        activation = query[0].to_dict()
-        document_id = query[0].id
-        print("Document found, going to delete ################################################################################3")
-        def delayed_delete():
-            time.sleep(20)  # Așteaptă 20 de secunde
-            activations_ref.document(document_id).delete()
-            print(f"Document {document_id} deleted after 20 seconds.")
-
-        # Pornim un thread care va șterge documentul după delay
-        threading.Thread(target=delayed_delete, daemon=True).start()
-        
-        return Response(activation, status=200)
 
 class ActivityInfo(APIView):
     def get(self, request, *args, **kwargs):
@@ -216,7 +183,5 @@ class ActivityInfo(APIView):
                 "state": "active",
                 "last_active": int(time.time())
             })
-
-        print("Document found, going to show #**********************")
         
         return Response("Updated", status=200)
