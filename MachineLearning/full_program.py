@@ -72,48 +72,68 @@ except Exception as e:
     print(f"Eroare la cerere: {e}")
 
 
+
 def livestream():
-	global truly_deactivate
-	cap = cv2.VideoCapture(2)
-	cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-	cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+    global truly_deactivate
+    global deactivate_camera
 
-	if LIVE_KEY == "":
-		return
+    cap = cv2.VideoCapture(2)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
-	command = ['ffmpeg',
-				'-f', 'rawvideo',
-				'-pix_fmt', 'bgr24',
-				'-s','640x480',
-				'-i','-',
-				'-ar', '44100',
-				'-ac', '2',
-				'-acodec', 'pcm_s16le',
-				'-f', 's16le',
-				'-ac', '2',
-				'-i','/dev/zero',   
-				'-acodec','aac',
-				'-ab','128k',
-				'-strict','experimental',
-				'-vcodec','h264',
-				'-pix_fmt','yuv420p',
-				'-g', '50',
-				'-vb','2500k',
-				'-profile:v', 'baseline',
-				'-preset', 'ultrafast',
-				'-r', '30',
-				'-f', 'flv', 
-				f'rtmp://a.rtmp.youtube.com/live2/{LIVE_KEY}']
+    if LIVE_KEY == "":
+        cap.release()
+        return
 
-	
+    command = [
+        'ffmpeg',
+        '-f', 'rawvideo',
+        '-pix_fmt', 'bgr24',
+        '-s', '640x480',
+        '-i', '-',
+        '-ar', '44100',
+        '-ac', '2',
+        '-acodec', 'pcm_s16le',
+        '-f', 's16le',
+        '-ac', '2',
+        '-i', '/dev/zero',
+        '-acodec', 'aac',
+        '-ab', '128k',
+        '-vcodec', 'h264',
+        '-pix_fmt', 'yuv420p',
+        '-g', '50',
+        '-vb', '2500k',
+        '-profile:v', 'baseline',
+        '-preset', 'ultrafast',
+        '-r', '30',
+        '-f', 'flv',
+        f'rtmp://a.rtmp.youtube.com/live2/{LIVE_KEY}'
+    ]
+
     pipe = subprocess.Popen(command, stdin=subprocess.PIPE, preexec_fn=os.setsid)
 
-    while truly_deactivate == False and deactivate_camera == False:
-        ret, frame = cap.read()
-        pipe.stdin.write(frame.tobytes())
-
-    os.killpg(os.getpgid(pipe.pid), signal.SIGTERM)
-    cap.release()
+    try:
+        while not truly_deactivate and not deactivate_camera:
+            ret, frame = cap.read()
+            if not ret or frame is None:
+                print("[WARN] Camera read failed, exiting livestream loop.")
+                break
+            pipe.stdin.write(frame.tobytes())
+    except Exception as e:
+        print(f"[ERROR] Exception during livestream: {e}")
+    finally:
+        print("[INFO] Cleaning up livestream...")
+        cap.release()
+        if pipe.stdin:
+            try:
+                pipe.stdin.close()
+            except Exception:
+                pass
+        if pipe.poll() is None:  # if still running
+            try:
+                os.killpg(os.getpgid(pipe.pid), signal.SIGTERM)
+            except Exception:
+                pass
 
 
 def fetch_camera_activate_deactivate():
@@ -150,7 +170,7 @@ def fetch_camera_activate_deactivate():
         else:
             print("No document found")
 
-        time.sleep(7)
+        time.sleep(10)
         
 
 def activity_thread():
@@ -170,7 +190,7 @@ def activity_thread():
         except Exception as e:
             print(f"Eroare la cerere: {e}")
         
-        time.sleep(7)
+        time.sleep(10)
 
 
 def save_audio_to_mp3(audio_data_bytes, filename):
@@ -180,7 +200,6 @@ def save_audio_to_mp3(audio_data_bytes, filename):
 
 
 def load_sound(filename):
-
     file_path = filename
     if (isinstance(filename,tf.Tensor)):
         file_path = filename.numpy().decode('utf-8')
@@ -204,9 +223,6 @@ def create_spectrogram(file_path):
         mel_spectrogram = mel_spectrogram[:, :1400]
 
     mel_spectrogram = np.expand_dims(mel_spectrogram, axis=-1)
-    print(mel_spectrogram.shape)
-
-    #mel_spectrogram.shape = (N_MELS, 1400, 1)
 
     return mel_spectrogram
 
@@ -223,7 +239,6 @@ def classify_audio(stream):
 
     mel_spectrogram = create_spectrogram(temp_filename)
     mel_spectrogram = np.expand_dims(mel_spectrogram, axis=0)
-    print("S: ",mel_spectrogram.shape)
     prediction = model.predict(mel_spectrogram)
 
     print(prediction)
