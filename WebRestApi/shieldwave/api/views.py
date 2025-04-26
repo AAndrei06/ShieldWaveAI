@@ -147,20 +147,16 @@ class GetUserStatusInfo(APIView):
 
         # Funcție pentru resetare
         def delayed_reset():
-            time.sleep(20)
+            time.sleep(24)
             users_ref.document(document_id).update({
                 "deactivateSystem": "no",
                 "deactivateCam": "no",
                 "deactivateMic": "no",
                 "activate": "no"
             })
-            print(f"User {document_id} fields reset after 20 seconds.")
 
-        # Verificăm dacă măcar unul este "yes"
         if any(value == "yes" for value in status_info.values()):
             threading.Thread(target=delayed_reset, daemon=True).start()
-        else:
-            print("All fields already 'no'. No reset scheduled.")
 
         return Response(status_info, status=200)
 
@@ -187,7 +183,5 @@ class ActivityInfo(APIView):
                 "state": "active",
                 "last_active": int(time.time())
             })
-
-        print("Document found, going to show #**********************")
         
         return Response("Updated", status=200)
