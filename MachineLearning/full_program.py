@@ -28,7 +28,7 @@ folders = joblib.load("3c_mel_class_1200_labels.pkl")
 #folders = ['door', 'voice', 'glass', 'silence', 'dog', 'footsteps']
 
 
-LIVE_KEY = "d4jp-wysv-7e8q-67sp-3efu"
+LIVE_KEY = ""
 #LIVE_KEY=""
 CHUNK = 1024
 FORMAT = pyaudio.paInt16
