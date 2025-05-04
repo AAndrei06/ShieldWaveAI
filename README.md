@@ -1,5 +1,4 @@
 <h1>Instrucțiuni de utilizare</h1>
-<hr>
 <h3>Pasul 1</h3>
 <p>Asigurațivă că aveți Python 3.10.11 instalat pe calculator, sau oricare altă versiune Python 3.10<p>
 <h3>Pasul 2</h3>
