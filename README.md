@@ -17,4 +17,3 @@
 <p>Proiectul este creat cu tensorflow==2.12.0, din cauza erorilor la antrenarea modelului audio create de versiunile mai noi, de asta instalez numai pachete ce suportă numpy 1.23.5, și am creat 2 medii virtuale deoarece acestă versiune tensorflow nu funcționa concomitent cu firebase_admin, ce aveau cerințe diferite ale pachetului protobuf</p>
 <p>S-ar putea să funcționeze doar pe Linux deoarece Raspberry Pi folosește Linux, la fel ca calculatorul meu, nu sunt sigur dacă va merge pe Windows fișierul startup.sh, nu am încercat</p>
 
-<p>Prezentare PPTX: <a href="https://www.canva.com/design/DAGiqCyWiAc/f9aB2ae2qspc1R2svu3PsQ/edit?utm_content=DAGiqCyWiAc&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton">ShieldWavePPTX</a></p>
