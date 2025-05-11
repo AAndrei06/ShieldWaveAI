@@ -1,3 +1,4 @@
+
 import sounddevice
 import speech_recognition as sr
 import time
@@ -76,4 +77,3 @@ while True:
     except Exception as e:
         print("❌ Alte probleme:", e)
     time.sleep(1)
-

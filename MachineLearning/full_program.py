@@ -1,3 +1,4 @@
+import sounddevice
 import threading
 import tensorflow as tf
 import tensorflow_io as tfio
@@ -20,6 +21,56 @@ import subprocess
 import librosa
 import os
 import signal
+import speech_recognition as sr
+import json
+from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing.text import tokenizer_from_json
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+import unicodedata
+import string
+from nltk.corpus import stopwords
+import nltk
+
+os.system('pulseaudio --start')
+p = pyaudio.PyAudio()
+# Afișează toate dispozitivele de intrare care conțin 'USB' în numele lor și indexurile lor
+usb_devices = []
+for i in range(p.get_device_count()):
+    info = p.get_device_info_by_index(i)
+    if info['maxInputChannels'] > 0 and 'USB' in info['name']:  # Filtrăm doar dispozitivele care conțin 'USB'
+        usb_devices.append(i)  # Adăugăm indexul dispozitivului
+
+# Asigură-te că ai descărcat stopwords și punctuație
+nltk.download('stopwords')
+nltk.download('punkt')
+
+# Cargar stopwords românesti
+stop = set(stopwords.words('romanian'))
+
+
+with open("tokenizer.json", "r") as json_file:
+    tokenizer_json = json.load(json_file)
+    tokenizer = tokenizer_from_json(tokenizer_json)
+    
+# Funcție pentru a elimina diacriticele
+def remove_accents(text):
+    return ''.join((c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn'))
+
+# Funcție de preprocesare
+def preprocess_text(text):
+    # Elimină diacriticele
+    text = remove_accents(text)
+
+    # Elimină semnele de punctuație
+    text = text.translate(str.maketrans('', '', string.punctuation))
+
+    # Tokenizare simplă folosind split()
+    words = text.lower().split()
+
+    # Elimină stopwords
+    filtered_words = [word for word in words if word not in stop]
+
+    return ' '.join(filtered_words)
 
 logging.getLogger('ultralytics').setLevel(logging.CRITICAL)
 model = keras.models.load_model('new_3c_mel_librosa_1200_1400x300_model')
@@ -268,14 +319,18 @@ def send_alert(confidence, object_detected, detection_type):
     url = 'http://127.0.0.1:8000/api/upload/'
 
     file_type = ""
-    if detection_type == "Audio":
-        file_path = "temp_audio.mp3"
+    if detection_type == "Audio" and object_detected == "bad_intention":
+        file_path = "output.mp3"
         file_type = "audio/mp3"
-    elif detection_type == "Video":
-        file_path = "video.avi"
-        file_type = "video/avi"
     else:
-        return "Nu a mers ceva"
+        if detection_type == "Audio":
+            file_path = "temp_audio.mp3"
+            file_type = "audio/mp3"
+        elif detection_type == "Video":
+            file_path = "video.avi"
+            file_type = "video/avi"
+        else:
+            return "Nu a mers ceva"
 
     data = {
         "classification": object_detected,
@@ -390,7 +445,55 @@ def object_detection_thread():
 
     cap.release()
     cv2.destroyAllWindows()
+    
 
+
+def sp_re_thread():
+    r = sr.Recognizer()
+    model_nlp = load_model("nlp_model_shieldwave")
+
+    while True:
+        try:
+            with sr.Microphone(device_index=int(usb_devices[-1])) as source:
+                r.adjust_for_ambient_noise(source, duration=1)
+                print("Vorbește...")
+                audio = r.listen(source, timeout=5)
+                text = r.recognize_google(audio, language="ro-RO")
+                sample_text = text
+
+                sample_text_processed = preprocess_text(sample_text)
+                sample_seq = tokenizer.texts_to_sequences([sample_text_processed])
+                sample_pad = pad_sequences(sample_seq, padding='post', maxlen=16)
+                
+                prediction = model_nlp.predict(sample_pad)
+                
+                print("-----------------------------------------------------------------")
+                print(f"Text recunoscut: {sample_text}")
+                
+                if prediction[0][0] > 0.5:
+                    label = "positive"
+                else:
+                    label = "negative"
+
+                print(f"Predicție: {label}")
+                
+                if label == "positive":
+                    with open("output.wav", "wb") as f:
+                        f.write(audio.get_wav_data())
+
+                    audio_segment = AudioSegment.from_wav("output.wav")
+                    audio_segment.export("output.mp3", format="mp3")
+                    send_alert(int(prediction[0][0]*100), "bad_intention", "Audio")
+
+                print("-----------------------------------------------------------------")
+        except sr.UnknownValueError:
+            print("❌ Nu s-a înțeles ce ai spus.")
+        except sr.RequestError as e:
+            print("❌ Eroare cu serviciul Google:", e)
+        except Exception as e:
+            print("❌ Alte probleme:", e)
+        
+        time.sleep(1)
 
 if __name__ == "__main__":
     audio_thread = threading.Thread(target=audio_classification_thread)
@@ -398,16 +501,19 @@ if __name__ == "__main__":
     livestream_thread = threading.Thread(target=livestream)
     activate_deactivate_thread = threading.Thread(target=fetch_camera_activate_deactivate)
     activity_thread = threading.Thread(target=activity_thread)
+    speech_thread = threading.Thread(target=sp_re_thread)
 
     audio_thread.start()
     object_detection_thread.start()
     livestream_thread.start()
     activate_deactivate_thread.start()
     activity_thread.start()
+    speech_thread.start()
 
     audio_thread.join()
     object_detection_thread.join()
     livestream_thread.join()
     activate_deactivate_thread.join()
     activity_thread.join()
+    speech_thread.join()
 
