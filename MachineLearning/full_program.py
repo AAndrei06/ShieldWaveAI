@@ -27,56 +27,49 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.text import tokenizer_from_json
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 import unicodedata
+import re
 import string
 from nltk.corpus import stopwords
 import nltk
 
-os.system('pulseaudio --start')
-p = pyaudio.PyAudio()
-# Afișează toate dispozitivele de intrare care conțin 'USB' în numele lor și indexurile lor
-usb_devices = []
-for i in range(p.get_device_count()):
-    info = p.get_device_info_by_index(i)
-    if info['maxInputChannels'] > 0 and 'USB' in info['name']:  # Filtrăm doar dispozitivele care conțin 'USB'
-        usb_devices.append(i)  # Adăugăm indexul dispozitivului
-
-# Asigură-te că ai descărcat stopwords și punctuație
 nltk.download('stopwords')
 nltk.download('punkt')
 
-# Cargar stopwords românesti
 stop = set(stopwords.words('romanian'))
-
-
-with open("tokenizer.json", "r") as json_file:
-    tokenizer_json = json.load(json_file)
-    tokenizer = tokenizer_from_json(tokenizer_json)
     
-# Funcție pentru a elimina diacriticele
 def remove_accents(text):
     return ''.join((c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn'))
 
-# Funcție de preprocesare
 def preprocess_text(text):
-    # Elimină diacriticele
     text = remove_accents(text)
-
-    # Elimină semnele de punctuație
     text = text.translate(str.maketrans('', '', string.punctuation))
-
-    # Tokenizare simplă folosind split()
     words = text.lower().split()
 
-    # Elimină stopwords
     filtered_words = [word for word in words if word not in stop]
 
     return ' '.join(filtered_words)
 
 logging.getLogger('ultralytics').setLevel(logging.CRITICAL)
 model = keras.models.load_model('new_3c_mel_librosa_1200_1400x300_model')
-#folders = joblib.load("class_labels2.pkl")
 folders = joblib.load("3c_mel_class_1200_labels.pkl")
-#folders = ['door', 'voice', 'glass', 'silence', 'dog', 'footsteps']
+
+
+translate = {}
+translate["person"] = "Persoana";
+translate["bicycle"] = "Bicicleta/Motocicleta";
+translate["motorcycle"] = "Bicicleta/Motocicleta";
+translate["bus"] = "Vehicul";
+translate["car"] = "Vehicul";
+translate["truck"] = "Vehicul";
+translate["bird"] = "Pasare";
+translate["cat"] = "Animal";
+translate["dog"] = "Animal";
+translate["horse"] = "Animal";
+translate["sheep"] = "Animal";
+translate["cow"] = "Animal";
+translate["elephant"] = "Animal";
+translate["bear"] = "Animal";
+translate["zebra"] = "Animal";
 
 
 LIVE_KEY = ""
@@ -180,7 +173,7 @@ def livestream():
                 pipe.stdin.close()
             except Exception:
                 pass
-        if pipe.poll() is None:  # if still running
+        if pipe.poll() is None:
             try:
                 os.killpg(os.getpgid(pipe.pid), signal.SIGTERM)
             except Exception:
@@ -367,12 +360,12 @@ def audio_classification_thread():
 
 
 def object_detection_thread():
-    model = YOLO('yolov8n.pt')
+    model = YOLO("yolov8n_openvino_model/", task='detect')
     cap = cv2.VideoCapture(0)
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    fps = 9
+    fps = 8
     output_file = 'video.avi'
-    out = cv2.VideoWriter(output_file, fourcc, fps, (640, 480))
+    out = cv2.VideoWriter(output_file, fourcc, fps, (640, 640))
     frames = []
     start_time = time.time()
 
@@ -382,21 +375,23 @@ def object_detection_thread():
     alert_interval = 5
 
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 640)
 
     _, start_frame = cap.read()
-    start_frame = imutils.resize(start_frame, width = 500)
     start_frame = cv2.cvtColor(start_frame,cv2.COLOR_BGR2GRAY)
     start_frame = cv2.GaussianBlur(start_frame, (21,21), 0)
 
+    # Variables to calculate FPS
+    frame_count_fps = 0
+    start_time_fps = time.time()
+
     while not deactivate_camera and not deactivate_actual_camera:
         ret, frame = cap.read()
-        results = model(frame, imgsz=440)
+        results = model(frame)
         object_detected = False
         detected_object_name = ""
         confidence_detected = ""
 
-        frame = imutils.resize(frame, width = 500)
         frame_bw = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         frame_bw = cv2.GaussianBlur(frame_bw, (5,5), 0)
         difference = cv2.absdiff(frame_bw, start_frame)
@@ -413,9 +408,9 @@ def object_detection_thread():
                         object_detected=True
                         detected_object_name=model.names[cls]
                         confidence_detected = int(confidence * 100)
-                        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                        label = f"{model.names[cls]} {confidence:.2f}"
-                        cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 1)
+                        label = f"{translate[model.names[cls]]} {int(confidence*100)}%"
+                        cv2.putText(frame, label, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
 
             if object_detected == False and (current_time - last_alert_time) > alert_interval:
                 send_alert(100, "Necunoscut", "Video")
@@ -438,23 +433,40 @@ def object_detection_thread():
             frames = []
             start_time = time.time()
 
+        # Calculate FPS
+        frame_count_fps += 1
+        elapsed_time_fps = time.time() - start_time_fps
+        if elapsed_time_fps > 1:
+            current_fps_fps = frame_count_fps / elapsed_time_fps
+            frame_count_fps = 0
+            start_time_fps = time.time()
+
+        # Display the FPS on the frame
+        cv2.putText(frame, f"FPS: {round(current_fps_fps)}", (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1, cv2.LINE_AA)
+
         cv2.imshow('YOLOv8 Object Detection', frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
+        time.sleep(0.08)
 
     cap.release()
     cv2.destroyAllWindows()
-    
 
 
 def sp_re_thread():
-    r = sr.Recognizer()
-    model_nlp = load_model("nlp_model_shieldwave")
 
-    while True:
+    with open("new_tokenizer.json", "r") as json_file:
+        tokenizer_json = json.load(json_file)
+        tokenizer = tokenizer_from_json(tokenizer_json)
+
+
+    r = sr.Recognizer()
+    model_nlp = load_model("new_nlp_model_shieldwave")
+
+    while not deactivate_camera and not deactivate_actual_microphone:
         try:
-            with sr.Microphone(device_index=int(usb_devices[-1])) as source:
+            with sr.Microphone() as source:
                 r.adjust_for_ambient_noise(source, duration=1)
                 print("Vorbește...")
                 audio = r.listen(source, timeout=5)
@@ -487,13 +499,13 @@ def sp_re_thread():
 
                 print("-----------------------------------------------------------------")
         except sr.UnknownValueError:
-            print("❌ Nu s-a înțeles ce ai spus.")
+            print("Nu s-a înțeles ce ai spus.")
         except sr.RequestError as e:
-            print("❌ Eroare cu serviciul Google:", e)
+            print("Eroare cu serviciul Google:", e)
         except Exception as e:
-            print("❌ Alte probleme:", e)
+            print("Alte probleme:", e)
         
-        time.sleep(1)
+
 
 if __name__ == "__main__":
     audio_thread = threading.Thread(target=audio_classification_thread)
