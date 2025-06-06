@@ -32,11 +32,14 @@ import string
 from nltk.corpus import stopwords
 import nltk
 
+
+#Downloading the romanian stopwords
 nltk.download('stopwords')
 nltk.download('punkt')
 
 stop = set(stopwords.words('romanian'))
-    
+
+#Some functions for preprocessing and modifying data    
 def remove_accents(text):
     return ''.join((c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn'))
 
@@ -49,11 +52,13 @@ def preprocess_text(text):
 
     return ' '.join(filtered_words)
 
+#Stop ultralytics logs in the terminal
 logging.getLogger('ultralytics').setLevel(logging.CRITICAL)
 model = keras.models.load_model('new_3c_mel_librosa_1200_1400x300_model')
 folders = joblib.load("3c_mel_class_1200_labels.pkl")
 
 
+#The translate dictionary
 translate = {}
 translate["person"] = "Persoana";
 translate["bicycle"] = "Bicicleta/Motocicleta";
@@ -72,7 +77,8 @@ translate["bear"] = "Animal";
 translate["zebra"] = "Animal";
 
 
-LIVE_KEY = ""
+#Some constants and keys
+LIVE_KEY = "d4jp-wysv-7e8q-67sp-3efu"
 #LIVE_KEY=""
 CHUNK = 1024
 FORMAT = pyaudio.paInt16
@@ -95,6 +101,7 @@ N_MELS = 300
 N_FFT = 1024
 HOP_LENGTH = int((TARGET_SAMPLE_RATE * DURATION) / 1400)
 
+#Checking if the user is valid and exists
 try:
     url = "http://127.0.0.1:8000/api/check_user/"
     response = requests.get(url, params={"auth_token": AUTH_TOKEN})
@@ -106,7 +113,7 @@ try:
 except Exception as e:
     print(f"Eroare la cerere: {e}")
 
-
+#Cleaning the database
 try:
     url = "http://127.0.0.1:8000/api/initial_clean/"
     response = requests.get(url, params={"auth_token": AUTH_TOKEN})
@@ -116,7 +123,7 @@ except Exception as e:
     print(f"Eroare la cerere: {e}")
 
 
-
+#The livestream function that starts a live video stream
 def livestream():
     global truly_deactivate
     global deactivate_camera
@@ -129,6 +136,7 @@ def livestream():
         cap.release()
         return
 
+    #The ffmpeg command that starts everything
     command = [
         'ffmpeg',
         '-f', 'rawvideo',
@@ -156,6 +164,7 @@ def livestream():
 
     pipe = subprocess.Popen(command, stdin=subprocess.PIPE, preexec_fn=os.setsid)
 
+    # Getting frames from webcam for the stream
     try:
         while not truly_deactivate and not deactivate_camera:
             ret, frame = cap.read()
@@ -252,7 +261,7 @@ def load_sound(filename):
     wav = librosa.util.fix_length(wav, size=TARGET_SAMPLE_RATE * DURATION)
     return wav
 
-
+# Function that creates the spectrogram for audio classification model
 def create_spectrogram(file_path):
     wav = load_sound(file_path)
     mel_spectrogram = librosa.feature.melspectrogram(
@@ -270,7 +279,10 @@ def create_spectrogram(file_path):
 
     return mel_spectrogram
 
+
+# Audio classification function
 def classify_audio(stream):
+    # Takes the frames from the stream
     frames = []
     for _ in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
         data = stream.read(CHUNK)
@@ -278,6 +290,7 @@ def classify_audio(stream):
 
     audio_data_bytes = b''.join(frames)
 
+    # Save audio to a file and load it from there and classify it
     temp_filename = 'temp_audio.mp3'
     save_audio_to_mp3(audio_data_bytes, temp_filename)
 
@@ -460,7 +473,6 @@ def sp_re_thread():
         tokenizer_json = json.load(json_file)
         tokenizer = tokenizer_from_json(tokenizer_json)
 
-
     r = sr.Recognizer()
     model_nlp = load_model("new_nlp_model_shieldwave")
 
@@ -506,7 +518,6 @@ def sp_re_thread():
             print("Alte probleme:", e)
         
 
-
 if __name__ == "__main__":
     audio_thread = threading.Thread(target=audio_classification_thread)
     object_detection_thread = threading.Thread(target=object_detection_thread)
@@ -528,4 +539,3 @@ if __name__ == "__main__":
     activate_deactivate_thread.join()
     activity_thread.join()
     speech_thread.join()
-
